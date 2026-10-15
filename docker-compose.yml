@@ -1,0 +1,132 @@
+name: chainroute
+
+services:
+  ai-engine:
+    build:
+      context: .
+      dockerfile: ai-engine/Dockerfile
+    environment:
+      ALLOCATION_PLAN_PATH: /app/allocation-plan.json
+    ports:
+      - "${AI_ENGINE_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; assert urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status == 200"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  blockchain:
+    build:
+      context: blockchain
+    environment:
+      CHAIN_RPC_URL: http://127.0.0.1:8545
+    ports:
+      - "${CHAIN_RPC_PORT:-8545}:8545"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8545',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',method:'eth_blockNumber',params:[],id:1}),signal:AbortSignal.timeout(2000)}).then(r=>r.json()).then(x=>{if(!/^0x[0-9a-f]+$/i.test(x.result||''))process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+  contract-deployer:
+    build:
+      context: blockchain
+    command: ["npx", "hardhat", "run", "scripts/deploy.js", "--network", "local"]
+    environment:
+      CHAIN_RPC_URL: http://blockchain:8545
+      CONTRACT_OUTPUT_PATH: /shared/contract.json
+    volumes:
+      - contract-artifacts:/shared
+    depends_on:
+      blockchain:
+        condition: service_healthy
+    restart: "no"
+
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-chainroute}"
+      POSTGRES_USER: "${POSTGRES_USER:-chainroute}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-chainroute-local}"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  backend:
+    build:
+      context: backend
+    environment:
+      PORT: 8080
+      AI_ENGINE_URL: http://ai-engine:8000
+      CHAIN_RPC_URL: http://blockchain:8545
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-chainroute}:${POSTGRES_PASSWORD:-chainroute-local}@database:5432/${POSTGRES_DB:-chainroute}"
+      CONTRACT_FILE: /shared/contract.json
+      DEPENDENCY_TIMEOUT_MS: "${DEPENDENCY_TIMEOUT_MS:-5000}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - contract-artifacts:/shared:ro
+    depends_on:
+      ai-engine:
+        condition: service_healthy
+      blockchain:
+        condition: service_healthy
+      contract-deployer:
+        condition: service_completed_successfully
+      database:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/health',{signal:AbortSignal.timeout(2000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  dashboard:
+    build:
+      context: dashboard
+      args:
+        VITE_API_TARGET: http://backend:8080
+    environment:
+      VITE_API_TARGET: http://backend:8080
+    ports:
+      - "${DASHBOARD_PORT:-5173}:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:5173/',{signal:AbortSignal.timeout(2000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  postgres-data:
+  contract-artifacts:

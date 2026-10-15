@@ -1,0 +1,10 @@
+.git
+.venv
+venv
+__pycache__
+*.py[cod]
+node_modules
+dist
+coverage
+artifacts
+cache

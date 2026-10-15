@@ -1,0 +1,16 @@
+{
+  "name": "chainroute-blockchain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ChainRoute local Hardhat chain and Phase 2 placeholder deployment",
+  "scripts": {
+    "node": "hardhat node --hostname 0.0.0.0",
+    "deploy:local": "hardhat run scripts/deploy.js --network local",
+    "compile": "hardhat compile"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "3.0.8",
+    "ethers": "6.13.4",
+    "hardhat": "2.22.17"
+  }
+}
