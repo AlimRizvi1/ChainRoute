@@ -1,0 +1,353 @@
+[
+  {
+    "type": "function",
+    "name": "createAgreement",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "planId", "type": "string" },
+      { "name": "shipper", "type": "address" },
+      { "name": "carrier", "type": "address" },
+      {
+        "name": "terms",
+        "type": "tuple",
+        "components": [
+          { "name": "freightValuePaise", "type": "uint256" },
+          { "name": "slaDeadline", "type": "uint64" },
+          { "name": "penaltyBpsPerBlock", "type": "uint16" },
+          { "name": "penaltyBlockSeconds", "type": "uint32" },
+          { "name": "freeHoldingHours", "type": "uint16" },
+          { "name": "demurrageRatePaisePerWagonHour", "type": "uint256" },
+          { "name": "wagonCount", "type": "uint32" },
+          { "name": "termsHash", "type": "bytes32" }
+        ]
+      }
+    ],
+    "outputs": [
+      { "name": "contractId", "type": "uint256" },
+      { "name": "agreementHash", "type": "bytes32" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "confirmBooking",
+    "stateMutability": "nonpayable",
+    "inputs": [{ "name": "contractId", "type": "uint256" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "updateShipmentStatus",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "contractId", "type": "uint256" },
+      { "name": "status", "type": "uint8" },
+      { "name": "timestamp", "type": "uint64" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "confirmDelivery",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "contractId", "type": "uint256" },
+      { "name": "timestamp", "type": "uint64" },
+      { "name": "podReference", "type": "string" }
+    ],
+    "outputs": [
+      { "name": "penaltyPaise", "type": "uint256" },
+      { "name": "demurragePaise", "type": "uint256" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "evaluateSLA",
+    "stateMutability": "view",
+    "inputs": [
+      { "name": "contractId", "type": "uint256" },
+      { "name": "deliveryTimestamp", "type": "uint64" }
+    ],
+    "outputs": [
+      { "name": "onTime", "type": "bool" },
+      { "name": "secondsLate", "type": "uint64" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "calculatePenalty",
+    "stateMutability": "view",
+    "inputs": [
+      { "name": "contractId", "type": "uint256" },
+      { "name": "secondsLate", "type": "uint64" }
+    ],
+    "outputs": [{ "name": "penaltyPaise", "type": "uint256" }]
+  },
+  {
+    "type": "function",
+    "name": "calculateDemurrage",
+    "stateMutability": "view",
+    "inputs": [
+      { "name": "contractId", "type": "uint256" },
+      { "name": "arrivedAtTimestamp", "type": "uint64" },
+      { "name": "deliveryTimestamp", "type": "uint64" }
+    ],
+    "outputs": [{ "name": "demurragePaise", "type": "uint256" }]
+  },
+  {
+    "type": "function",
+    "name": "releasePayment",
+    "stateMutability": "nonpayable",
+    "inputs": [{ "name": "contractId", "type": "uint256" }],
+    "outputs": [{ "name": "netPaymentPaise", "type": "uint256" }]
+  },
+  {
+    "type": "function",
+    "name": "raiseDispute",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "contractId", "type": "uint256" },
+      { "name": "reasonCode", "type": "string" },
+      { "name": "raisedBy", "type": "address" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "resolveDispute",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "contractId", "type": "uint256" },
+      { "name": "outcome", "type": "uint8" }
+    ],
+    "outputs": [
+      { "name": "penaltyPaise", "type": "uint256" },
+      { "name": "demurragePaise", "type": "uint256" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "getContractStatus",
+    "stateMutability": "view",
+    "inputs": [{ "name": "contractId", "type": "uint256" }],
+    "outputs": [
+      {
+        "name": "agreement",
+        "type": "tuple",
+        "components": [
+          { "name": "contractId", "type": "uint256" },
+          { "name": "planId", "type": "string" },
+          { "name": "shipper", "type": "address" },
+          { "name": "carrier", "type": "address" },
+          {
+            "name": "terms",
+            "type": "tuple",
+            "components": [
+              { "name": "freightValuePaise", "type": "uint256" },
+              { "name": "slaDeadline", "type": "uint64" },
+              { "name": "penaltyBpsPerBlock", "type": "uint16" },
+              { "name": "penaltyBlockSeconds", "type": "uint32" },
+              { "name": "freeHoldingHours", "type": "uint16" },
+              { "name": "demurrageRatePaisePerWagonHour", "type": "uint256" },
+              { "name": "wagonCount", "type": "uint32" },
+              { "name": "termsHash", "type": "bytes32" }
+            ]
+          },
+          { "name": "state", "type": "uint8" },
+          { "name": "onTime", "type": "bool" },
+          { "name": "secondsLate", "type": "uint64" },
+          { "name": "deliveryTimestamp", "type": "uint64" },
+          { "name": "podReference", "type": "string" },
+          { "name": "penaltyPaise", "type": "uint256" },
+          { "name": "demurragePaise", "type": "uint256" },
+          { "name": "netPaymentPaise", "type": "uint256" }
+        ]
+      },
+      {
+        "name": "history",
+        "type": "tuple[]",
+        "components": [
+          { "name": "action", "type": "uint8" },
+          { "name": "actor", "type": "address" },
+          { "name": "timestamp", "type": "uint64" },
+          { "name": "dataHash", "type": "bytes32" }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "closeContract",
+    "stateMutability": "nonpayable",
+    "inputs": [{ "name": "contractId", "type": "uint256" }],
+    "outputs": []
+  },
+  {
+    "type": "event",
+    "name": "AgreementCreated",
+    "anonymous": false,
+    "inputs": [
+      { "name": "contractId", "type": "uint256", "indexed": true },
+      { "name": "planId", "type": "string", "indexed": false },
+      { "name": "shipper", "type": "address", "indexed": true },
+      { "name": "carrier", "type": "address", "indexed": true },
+      { "name": "agreementHash", "type": "bytes32", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "BookingConfirmed",
+    "anonymous": false,
+    "inputs": [
+      { "name": "contractId", "type": "uint256", "indexed": true },
+      { "name": "carrier", "type": "address", "indexed": true },
+      { "name": "timestamp", "type": "uint64", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ShipmentStatusUpdated",
+    "anonymous": false,
+    "inputs": [
+      { "name": "contractId", "type": "uint256", "indexed": true },
+      { "name": "status", "type": "uint8", "indexed": false },
+      { "name": "actor", "type": "address", "indexed": true },
+      { "name": "timestamp", "type": "uint64", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "DeliveryConfirmed",
+    "anonymous": false,
+    "inputs": [
+      { "name": "contractId", "type": "uint256", "indexed": true },
+      { "name": "actor", "type": "address", "indexed": true },
+      { "name": "timestamp", "type": "uint64", "indexed": false },
+      { "name": "podReference", "type": "string", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "PenaltyCalculated",
+    "anonymous": false,
+    "inputs": [
+      { "name": "contractId", "type": "uint256", "indexed": true },
+      { "name": "penaltyPaise", "type": "uint256", "indexed": false },
+      { "name": "secondsLate", "type": "uint64", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "DemurrageCalculated",
+    "anonymous": false,
+    "inputs": [
+      { "name": "contractId", "type": "uint256", "indexed": true },
+      { "name": "demurragePaise", "type": "uint256", "indexed": false },
+      { "name": "heldSeconds", "type": "uint64", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "PaymentReleased",
+    "anonymous": false,
+    "inputs": [
+      { "name": "contractId", "type": "uint256", "indexed": true },
+      { "name": "grossPaise", "type": "uint256", "indexed": false },
+      { "name": "penaltyPaise", "type": "uint256", "indexed": false },
+      { "name": "demurragePaise", "type": "uint256", "indexed": false },
+      { "name": "netPaymentPaise", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "DisputeRaised",
+    "anonymous": false,
+    "inputs": [
+      { "name": "contractId", "type": "uint256", "indexed": true },
+      { "name": "raisedBy", "type": "address", "indexed": true },
+      { "name": "reasonCode", "type": "string", "indexed": false },
+      { "name": "timestamp", "type": "uint64", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "DisputeResolved",
+    "anonymous": false,
+    "inputs": [
+      { "name": "contractId", "type": "uint256", "indexed": true },
+      { "name": "arbitrator", "type": "address", "indexed": true },
+      { "name": "outcome", "type": "uint8", "indexed": false },
+      { "name": "penaltyPaise", "type": "uint256", "indexed": false },
+      { "name": "demurragePaise", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ContractClosed",
+    "anonymous": false,
+    "inputs": [
+      { "name": "contractId", "type": "uint256", "indexed": true },
+      { "name": "timestamp", "type": "uint64", "indexed": false }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NotAuthorized",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotCarrier",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotContractParty",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotArbitrator",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnknownContract",
+    "inputs": [{ "name": "contractId", "type": "uint256" }]
+  },
+  {
+    "type": "error",
+    "name": "InvalidState",
+    "inputs": [
+      { "name": "currentState", "type": "uint8" },
+      { "name": "requiredState", "type": "uint8" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidTerms",
+    "inputs": [{ "name": "reasonCode", "type": "uint8" }]
+  },
+  {
+    "type": "error",
+    "name": "InvalidShipmentStatus",
+    "inputs": [{ "name": "status", "type": "uint8" }]
+  },
+  {
+    "type": "error",
+    "name": "InvalidTimestamp",
+    "inputs": [
+      { "name": "supplied", "type": "uint64" },
+      { "name": "previous", "type": "uint64" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "EmptyProofOfDelivery",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidDisputeOutcome",
+    "inputs": [{ "name": "outcome", "type": "uint8" }]
+  }
+]

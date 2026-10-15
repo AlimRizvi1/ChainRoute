@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chainroute.local/contracts/ai-engine.schema.json",
+  "title": "ChainRoute AI Allocation API",
+  "description": "Track 1 request and response schemas. Transport endpoints are documented in platform.openapi.yaml.",
+  "oneOf": [
+    { "$ref": "#/$defs/optimizeRequest" },
+    { "$ref": "#/$defs/allocationPlan" }
+  ],
+  "$defs": {
+    "order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["orderId", "cargoType", "quantityTonnes", "destination", "priority", "deadline"],
+      "properties": {
+        "orderId": { "type": "string", "minLength": 1 },
+        "cargoType": { "type": "string", "minLength": 1 },
+        "quantityTonnes": { "type": "number", "exclusiveMinimum": 0 },
+        "destination": { "type": "string", "minLength": 1 },
+        "priority": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "deadline": { "type": "string", "format": "date-time" }
+      }
+    },
+    "wagon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wagonId", "capacityTonnes", "wagonType", "location", "available"],
+      "properties": {
+        "wagonId": { "type": "string", "minLength": 1 },
+        "capacityTonnes": { "type": "number", "exclusiveMinimum": 0 },
+        "wagonType": { "type": "string", "minLength": 1 },
+        "location": { "type": "string", "minLength": 1 },
+        "available": { "type": "boolean" }
+      }
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routeId", "origin", "destination", "distanceKm", "transitTimeSeconds"],
+      "properties": {
+        "routeId": { "type": "string", "minLength": 1 },
+        "origin": { "type": "string", "minLength": 1 },
+        "destination": { "type": "string", "minLength": 1 },
+        "distanceKm": { "type": "number", "exclusiveMinimum": 0 },
+        "transitTimeSeconds": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "weights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["onTime", "cost", "utilization"],
+      "properties": {
+        "onTime": { "type": "number", "minimum": 0, "maximum": 1 },
+        "cost": { "type": "number", "minimum": 0, "maximum": 1 },
+        "utilization": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "optimizeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["orders", "wagons", "routes", "weights"],
+      "properties": {
+        "orders": { "type": "array", "items": { "$ref": "#/$defs/order" } },
+        "wagons": { "type": "array", "items": { "$ref": "#/$defs/wagon" } },
+        "routes": { "type": "array", "items": { "$ref": "#/$defs/route" } },
+        "weights": { "$ref": "#/$defs/weights" }
+      }
+    },
+    "routeAssignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routeId", "origin", "destination"],
+      "properties": {
+        "routeId": { "type": "string", "minLength": 1 },
+        "origin": { "type": "string", "minLength": 1 },
+        "destination": { "type": "string", "minLength": 1 }
+      }
+    },
+    "assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["orderId", "cargoType", "wagonIds", "route", "quantityTonnes", "departAt", "eta", "onTimeProbability", "score"],
+      "properties": {
+        "orderId": { "type": "string", "minLength": 1 },
+        "cargoType": { "type": "string", "minLength": 1 },
+        "wagonIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "route": { "$ref": "#/$defs/routeAssignment" },
+        "quantityTonnes": { "type": "number", "exclusiveMinimum": 0 },
+        "departAt": { "type": "string", "format": "date-time" },
+        "eta": { "type": "string", "format": "date-time" },
+        "onTimeProbability": { "type": "number", "minimum": 0, "maximum": 1 },
+        "score": { "type": "number" }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["utilizationPercent", "estimatedCostPaise", "distanceKm", "onTimeProbability"],
+      "properties": {
+        "utilizationPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "estimatedCostPaise": { "type": "string", "pattern": "^[0-9]+$" },
+        "distanceKm": { "type": "number", "minimum": 0 },
+        "onTimeProbability": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "unassignedOrder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["orderId", "reasonCode", "message"],
+      "properties": {
+        "orderId": { "type": "string", "minLength": 1 },
+        "reasonCode": {
+          "type": "string",
+          "enum": ["NO_COMPATIBLE_WAGON", "NO_ROUTE", "INSUFFICIENT_CAPACITY", "NO_FEASIBLE_ASSIGNMENT", "TIME_BUDGET_EXCEEDED"]
+        },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "alternative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rank", "score", "assignments", "metrics"],
+      "properties": {
+        "rank": { "type": "integer", "minimum": 1 },
+        "score": { "type": "number" },
+        "assignments": { "type": "array", "items": { "$ref": "#/$defs/assignment" } },
+        "metrics": { "$ref": "#/$defs/metrics" }
+      }
+    },
+    "runMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["generatedAt", "durationMs", "algorithm", "weights", "inputHash", "inputCounts", "prediction"],
+      "properties": {
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "algorithm": { "type": "string", "minLength": 1 },
+        "weights": { "$ref": "#/$defs/weights" },
+        "inputHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "inputCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["orders", "wagons", "routes"],
+          "properties": {
+            "orders": { "type": "integer", "minimum": 0 },
+            "wagons": { "type": "integer", "minimum": 0 },
+            "routes": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "prediction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "modelVersion"],
+          "properties": {
+            "method": { "type": "string", "enum": ["logistic_regression", "heuristic_fallback"] },
+            "modelVersion": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+    "allocationPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planId", "runId", "assignments", "metrics", "unassignedOrders", "alternatives", "runMetadata"],
+      "properties": {
+        "planId": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "assignments": { "type": "array", "items": { "$ref": "#/$defs/assignment" } },
+        "metrics": { "$ref": "#/$defs/metrics" },
+        "unassignedOrders": { "type": "array", "items": { "$ref": "#/$defs/unassignedOrder" } },
+        "alternatives": { "type": "array", "items": { "$ref": "#/$defs/alternative" } },
+        "runMetadata": { "$ref": "#/$defs/runMetadata" }
+      }
+    }
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chainroute.local/contracts/blockchain.schema.json",
+  "title": "ChainRoute Blockchain JSON Boundary",
+  "description": "HTTP/JSON representation of contract creation terms and contract status returned by Track 2.",
+  "$defs": {
+    "terms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freightValuePaise",
+        "slaDeadline",
+        "penaltyBpsPerBlock",
+        "penaltyBlockSeconds",
+        "freeHoldingHours",
+        "demurrageRatePaisePerWagonHour",
+        "wagonCount",
+        "termsHash"
+      ],
+      "properties": {
+        "freightValuePaise": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        "slaDeadline": { "type": "string", "format": "date-time" },
+        "penaltyBpsPerBlock": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "penaltyBlockSeconds": { "type": "integer", "minimum": 1, "maximum": 4294967295 },
+        "freeHoldingHours": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "demurrageRatePaisePerWagonHour": { "type": "string", "pattern": "^[0-9]+$" },
+        "wagonCount": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        "termsHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" }
+      }
+    },
+    "createAgreementRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planId", "shipper", "carrier", "terms"],
+      "properties": {
+        "planId": { "type": "string", "minLength": 1 },
+        "shipper": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+        "carrier": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+        "terms": { "$ref": "#/$defs/terms" }
+      }
+    },
+    "historyEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "actor", "timestamp", "dataHash"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "AgreementCreated",
+            "BookingConfirmed",
+            "ShipmentStatusUpdated",
+            "DeliveryConfirmed",
+            "PenaltyCalculated",
+            "DemurrageCalculated",
+            "PaymentReleased",
+            "DisputeRaised",
+            "DisputeResolved",
+            "ContractClosed"
+          ]
+        },
+        "actor": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "dataHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" }
+      }
+    },
+    "contractStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractId",
+        "planId",
+        "shipper",
+        "carrier",
+        "terms",
+        "state",
+        "onTime",
+        "secondsLate",
+        "deliveryTimestamp",
+        "podReference",
+        "penaltyPaise",
+        "demurragePaise",
+        "netPaymentPaise",
+        "history"
+      ],
+      "properties": {
+        "contractId": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        "planId": { "type": "string", "minLength": 1 },
+        "shipper": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+        "carrier": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+        "terms": { "$ref": "#/$defs/terms" },
+        "state": {
+          "type": "string",
+          "enum": ["Created", "Booked", "InTransit", "Delivered", "PenaltyCalculated", "PaymentReleased", "Closed", "Disputed"]
+        },
+        "onTime": { "type": "boolean" },
+        "secondsLate": { "type": "integer", "minimum": 0 },
+        "deliveryTimestamp": { "type": ["string", "null"], "format": "date-time" },
+        "podReference": { "type": ["string", "null"] },
+        "penaltyPaise": { "type": "string", "pattern": "^[0-9]+$" },
+        "demurragePaise": { "type": "string", "pattern": "^[0-9]+$" },
+        "netPaymentPaise": { "type": "string", "pattern": "^[0-9]+$" },
+        "history": { "type": "array", "items": { "$ref": "#/$defs/historyEntry" } }
+      }
+    }
+  },
+  "$ref": "#/$defs/createAgreementRequest"
+}

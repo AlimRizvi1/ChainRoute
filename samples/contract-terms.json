@@ -1,0 +1,15 @@
+{
+  "planId": "plan-demo-0001",
+  "shipper": "0x1111111111111111111111111111111111111111",
+  "carrier": "0x2222222222222222222222222222222222222222",
+  "terms": {
+    "freightValuePaise": "2500000",
+    "slaDeadline": "2026-01-08T06:00:00Z",
+    "penaltyBpsPerBlock": 200,
+    "penaltyBlockSeconds": 21600,
+    "freeHoldingHours": 6,
+    "demurrageRatePaisePerWagonHour": "500",
+    "wagonCount": 12,
+    "termsHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

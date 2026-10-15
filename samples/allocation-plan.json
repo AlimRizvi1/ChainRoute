@@ -1,0 +1,78 @@
+{
+  "planId": "plan-demo-0001",
+  "runId": "run-demo-0001",
+  "assignments": [
+    {
+      "orderId": "ORD-0001",
+      "cargoType": "grain",
+      "wagonIds": ["WAG-001", "WAG-002"],
+      "route": { "routeId": "RTE-001", "origin": "Yard-0", "destination": "Port-A" },
+      "quantityTonnes": 40,
+      "departAt": "2026-01-07T20:00:00Z",
+      "eta": "2026-01-08T06:00:00Z",
+      "onTimeProbability": 0.94,
+      "score": 0.91
+    },
+    {
+      "orderId": "ORD-0002",
+      "cargoType": "coal",
+      "wagonIds": ["WAG-003", "WAG-004"],
+      "route": { "routeId": "RTE-002", "origin": "Yard-0", "destination": "Plant-B" },
+      "quantityTonnes": 40,
+      "departAt": "2026-01-07T20:00:00Z",
+      "eta": "2026-01-08T08:00:00Z",
+      "onTimeProbability": 0.88,
+      "score": 0.86
+    },
+    {
+      "orderId": "ORD-0003",
+      "cargoType": "steel",
+      "wagonIds": ["WAG-005", "WAG-006"],
+      "route": { "routeId": "RTE-003", "origin": "Yard-0", "destination": "Depot-C" },
+      "quantityTonnes": 40,
+      "departAt": "2026-01-07T20:00:00Z",
+      "eta": "2026-01-08T04:00:00Z",
+      "onTimeProbability": 0.97,
+      "score": 0.95
+    },
+    {
+      "orderId": "ORD-0004",
+      "cargoType": "grain",
+      "wagonIds": ["WAG-007", "WAG-008"],
+      "route": { "routeId": "RTE-004", "origin": "Yard-0", "destination": "Port-D" },
+      "quantityTonnes": 40,
+      "departAt": "2026-01-07T20:00:00Z",
+      "eta": "2026-01-08T10:00:00Z",
+      "onTimeProbability": 0.91,
+      "score": 0.82
+    },
+    {
+      "orderId": "ORD-0005",
+      "cargoType": "coal",
+      "wagonIds": ["WAG-009", "WAG-010"],
+      "route": { "routeId": "RTE-002", "origin": "Yard-0", "destination": "Plant-B" },
+      "quantityTonnes": 40,
+      "departAt": "2026-01-07T20:00:00Z",
+      "eta": "2026-01-08T08:00:00Z",
+      "onTimeProbability": 0.89,
+      "score": 0.84
+    }
+  ],
+  "metrics": {
+    "utilizationPercent": 100,
+    "estimatedCostPaise": "375000",
+    "distanceKm": 780,
+    "onTimeProbability": 0.918
+  },
+  "unassignedOrders": [],
+  "alternatives": [],
+  "runMetadata": {
+    "generatedAt": "2026-01-07T19:59:59Z",
+    "durationMs": 842,
+    "algorithm": "ortools-cp-sat",
+    "weights": { "onTime": 0.5, "cost": 0.3, "utilization": 0.2 },
+    "inputHash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "inputCounts": { "orders": 5, "wagons": 10, "routes": 4 },
+    "prediction": { "method": "logistic_regression", "modelVersion": "demo-1" }
+  }
+}

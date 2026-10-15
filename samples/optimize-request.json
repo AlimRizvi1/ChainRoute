@@ -1,0 +1,67 @@
+{
+  "orders": [
+    {
+      "orderId": "ORD-0001",
+      "cargoType": "grain",
+      "quantityTonnes": 40,
+      "destination": "Port-A",
+      "priority": 1,
+      "deadline": "2026-01-08T06:00:00Z"
+    },
+    {
+      "orderId": "ORD-0002",
+      "cargoType": "coal",
+      "quantityTonnes": 40,
+      "destination": "Plant-B",
+      "priority": 2,
+      "deadline": "2026-01-08T12:00:00Z"
+    },
+    {
+      "orderId": "ORD-0003",
+      "cargoType": "steel",
+      "quantityTonnes": 40,
+      "destination": "Depot-C",
+      "priority": 1,
+      "deadline": "2026-01-08T12:00:00Z"
+    },
+    {
+      "orderId": "ORD-0004",
+      "cargoType": "grain",
+      "quantityTonnes": 40,
+      "destination": "Port-D",
+      "priority": 3,
+      "deadline": "2026-01-08T18:00:00Z"
+    },
+    {
+      "orderId": "ORD-0005",
+      "cargoType": "coal",
+      "quantityTonnes": 40,
+      "destination": "Plant-B",
+      "priority": 2,
+      "deadline": "2026-01-08T18:00:00Z"
+    }
+  ],
+  "wagons": [
+    { "wagonId": "WAG-001", "capacityTonnes": 20, "wagonType": "covered", "location": "Yard-0", "available": true },
+    { "wagonId": "WAG-002", "capacityTonnes": 20, "wagonType": "covered", "location": "Yard-0", "available": true },
+    { "wagonId": "WAG-003", "capacityTonnes": 20, "wagonType": "open", "location": "Yard-0", "available": true },
+    { "wagonId": "WAG-004", "capacityTonnes": 20, "wagonType": "open", "location": "Yard-0", "available": true },
+    { "wagonId": "WAG-005", "capacityTonnes": 20, "wagonType": "flat", "location": "Yard-0", "available": true },
+    { "wagonId": "WAG-006", "capacityTonnes": 20, "wagonType": "flat", "location": "Yard-0", "available": true },
+    { "wagonId": "WAG-007", "capacityTonnes": 20, "wagonType": "covered", "location": "Yard-0", "available": true },
+    { "wagonId": "WAG-008", "capacityTonnes": 20, "wagonType": "covered", "location": "Yard-0", "available": true },
+    { "wagonId": "WAG-009", "capacityTonnes": 20, "wagonType": "open", "location": "Yard-0", "available": true },
+    { "wagonId": "WAG-010", "capacityTonnes": 20, "wagonType": "open", "location": "Yard-0", "available": true }
+  ],
+  "routes": [
+    { "routeId": "RTE-001", "origin": "Yard-0", "destination": "Port-A", "distanceKm": 120, "transitTimeSeconds": 36000 },
+    { "routeId": "RTE-002", "origin": "Yard-0", "destination": "Plant-B", "distanceKm": 180, "transitTimeSeconds": 43200 },
+    { "routeId": "RTE-003", "origin": "Yard-0", "destination": "Depot-C", "distanceKm": 90, "transitTimeSeconds": 28800 },
+    { "routeId": "RTE-004", "origin": "Yard-0", "destination": "Port-D", "distanceKm": 210, "transitTimeSeconds": 50400 }
+  ],
+  "weights": {
+    "onTime": 0.5,
+    "cost": 0.3,
+    "utilization": 0.2
+  }
+}

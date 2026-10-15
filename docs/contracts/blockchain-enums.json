@@ -1,0 +1,34 @@
+{
+  "contractState": [
+    { "value": 0, "name": "Created" },
+    { "value": 1, "name": "Booked" },
+    { "value": 2, "name": "InTransit" },
+    { "value": 3, "name": "Delivered" },
+    { "value": 4, "name": "PenaltyCalculated" },
+    { "value": 5, "name": "PaymentReleased" },
+    { "value": 6, "name": "Closed" },
+    { "value": 7, "name": "Disputed" }
+  ],
+  "shipmentStatus": [
+    { "value": 0, "name": "Dispatched" },
+    { "value": 1, "name": "CheckpointReached" },
+    { "value": 2, "name": "ArrivedAtDestination" }
+  ],
+  "historyAction": [
+    { "value": 0, "name": "AgreementCreated" },
+    { "value": 1, "name": "BookingConfirmed" },
+    { "value": 2, "name": "ShipmentStatusUpdated" },
+    { "value": 3, "name": "DeliveryConfirmed" },
+    { "value": 4, "name": "PenaltyCalculated" },
+    { "value": 5, "name": "DemurrageCalculated" },
+    { "value": 6, "name": "PaymentReleased" },
+    { "value": 7, "name": "DisputeRaised" },
+    { "value": 8, "name": "DisputeResolved" },
+    { "value": 9, "name": "ContractClosed" }
+  ],
+  "disputeOutcome": [
+    { "value": 0, "name": "UpholdDeductions" },
+    { "value": 1, "name": "WaivePenalty" },
+    { "value": 2, "name": "WaiveAll" }
+  ]
+}

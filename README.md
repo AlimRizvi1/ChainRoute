@@ -18,7 +18,7 @@ Elish owns both the backend API and dashboard, as Track 3 is defined in the plan
 
 ## Getting started
 
-The project is currently in **Phase 0: Toolchain and Workspace Setup**. Before implementing track-specific logic, each member should:
+The foundation is underway: Alim's local Phase 0 checks have passed, while Parth's and Elish's machine checks remain pending. Phase 1 contracts, decisions, and sample data are complete and approved by all three members. Each member should:
 
 1. Install and verify Python 3.12+, Node.js 22 with npm 10+, Docker Desktop with Compose v2, and Git.
 2. Clone the repository and confirm they can create and push a branch.
@@ -26,7 +26,7 @@ The project is currently in **Phase 0: Toolchain and Workspace Setup**. Before i
 4. Confirm a local PostgreSQL container can start and answer a query.
 5. Record working tool versions and evidence in the progress tracker below.
 
-The full-system `docker compose up --build` workflow belongs to Phase 2; it is not available yet. Phase 1 must first freeze the shared interfaces and sample data.
+The full-system `docker compose up --build` workflow belongs to Phase 2; it is not available yet.
 
 ## Project layout
 
@@ -37,7 +37,7 @@ backend/            Track 3 — TypeScript API
 dashboard/          Track 3 — TypeScript web UI
 samples/            Shared interface examples (Phase 1)
 docs/
-  contracts/        Frozen cross-track contracts (Phase 1)
+  contracts/        Cross-track contract drafts and schemas (Phase 1)
   decisions.md      Team decisions for the plan
   Plan.md           Full technical development plan
 ```
@@ -51,7 +51,7 @@ Update this table as work is completed. Set a phase to **In progress** only when
 | Phase | Work | Owner | Status | Evidence / notes |
 |---|---|---|---|---|
 | 0 | Toolchain and workspace setup | All three | In progress — Alim's local checks complete; team checks pending | Alim: Python 3.13.2, Node.js 22.22.3, npm 11.8.0, Docker 29.8.2 / Compose v5.6.0, Git 2.49.0; Python HTTP returned 200, Node hello-world ran, Docker hello-world passed, PostgreSQL 16 `SELECT 1` passed. Parth/Elish machine checks and shared clone/push verification remain. |
-| 1 | Interface contracts and sample data freeze | All three | Not started | Record decisions in [docs/decisions.md](docs/decisions.md); add contracts and samples. |
+| 1 | Interface contracts and sample data freeze | All three | Done — all three approvals confirmed | [AI engine schema](docs/contracts/ai-engine.schema.json), [Platform OpenAPI](docs/contracts/platform.openapi.yaml), [Blockchain contract and ABI](docs/contracts/blockchain.md); [sample payloads](samples/). All three members' approvals recorded in [decision log](docs/decisions.md); schemas and examples validated. |
 | 2 | Walking skeleton | All three | Not started | Start all services and verify degraded-service behavior with Docker Compose. |
 
 ### Track 1 — AI/ML Allocation Engine
@@ -117,4 +117,6 @@ Complete one column per person. Use `✓` only after the command/test succeeds o
 
 ## Team decisions
 
-The team should resolve the eight open choices in Phase 1 and record each decision with a reason in [docs/decisions.md](docs/decisions.md). Do not treat an undecided option as a project requirement.
+The eight Phase 1 choices and their reasons are recorded in [docs/decisions.md](docs/decisions.md).
+
+Phase 1 decisions and interface reviews are approved by Alim, Parth, and Elish; see the sign-off record in [docs/decisions.md](docs/decisions.md).

@@ -1,0 +1,861 @@
+openapi: 3.1.0
+info:
+  title: ChainRoute Platform API
+  version: 1.0.0
+  description: >
+    Track 3 HTTP contract consumed by the dashboard. Dates are ISO-8601 UTC.
+    Money is decimal-string INR paise. Contract and order IDs are opaque strings
+    over HTTP, including uint256 blockchain IDs.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: System
+  - name: Authentication
+  - name: Orders and plans
+  - name: Contracts
+  - name: Dashboard
+  - name: Administration
+  - name: Audit
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Report platform and dependency health
+      security: []
+      responses:
+        "200":
+          description: Platform is running, possibly with dependencies degraded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Exchange demo credentials for a bearer token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [username, password]
+              properties:
+                username: { type: string, minLength: 1 }
+                password: { type: string, minLength: 1, writeOnly: true }
+      responses:
+        "200":
+          description: Credentials accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [accessToken, tokenType, expiresAt, user]
+                properties:
+                  accessToken: { type: string }
+                  tokenType: { const: Bearer }
+                  expiresAt: { type: string, format: date-time }
+                  user: { $ref: "#/components/schemas/UserSummary" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /orders:
+    post:
+      tags: [Orders and plans]
+      summary: Submit a freight order
+      description: "Allowed: Shipper, Administrator. A committed order becomes immutable once included in a generated plan."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrderInput" }
+      responses:
+        "201":
+          description: Order accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [orderId, status]
+                properties:
+                  orderId: { type: string }
+                  status: { const: Pending }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /optimizations/run:
+    post:
+      tags: [Orders and plans]
+      summary: Optimize pending orders
+      description: "Allowed: Shipper, Administrator. Each request creates an independent run. Track 1 unavailability returns 503; order intake remains available."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [weights]
+              properties:
+                weights:
+                  $ref: "./ai-engine.schema.json#/$defs/weights"
+      responses:
+        "200":
+          description: Plan generated and persisted.
+          content:
+            application/json:
+              schema:
+                $ref: "./ai-engine.schema.json#/$defs/allocationPlan"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "502": { $ref: "#/components/responses/UpstreamInvalidResponse" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+        "504": { $ref: "#/components/responses/UpstreamTimeout" }
+  /plans/{planId}:
+    parameters:
+      - $ref: "#/components/parameters/PlanId"
+    get:
+      tags: [Orders and plans]
+      summary: Retrieve a saved allocation plan
+      description: "Allowed: the owning Shipper and Administrator. Other roles receive 404."
+      responses:
+        "200":
+          description: Plan found.
+          content:
+            application/json:
+              schema: { $ref: "./ai-engine.schema.json#/$defs/allocationPlan" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /plans/{planId}/accept:
+    parameters:
+      - $ref: "#/components/parameters/PlanId"
+    post:
+      tags: [Orders and plans]
+      summary: Accept a plan and create its blockchain agreement
+      description: "Allowed: owning Shipper, Administrator. Repeating the same Idempotency-Key returns the original contract."
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AcceptPlanInput" }
+      responses:
+        "200":
+          description: Agreement created or existing idempotent result returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [contractId, planId, state, agreementHash]
+                properties:
+                  contractId: { type: string, pattern: "^[1-9][0-9]*$" }
+                  planId: { type: string }
+                  state: { const: Created }
+                  agreementHash: { type: string, pattern: "^0x[0-9a-fA-F]{64}$" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /plans/{planId}/export:
+    parameters:
+      - $ref: "#/components/parameters/PlanId"
+    get:
+      tags: [Orders and plans]
+      summary: Export a saved allocation plan
+      description: "Allowed: the owning Shipper and Administrator."
+      parameters:
+        - name: format
+          in: query
+          required: true
+          schema: { type: string, enum: [json, csv] }
+      responses:
+        "200":
+          description: Plan export.
+          content:
+            application/json:
+              schema: { $ref: "./ai-engine.schema.json#/$defs/allocationPlan" }
+            text/csv:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /contracts:
+    get:
+      tags: [Contracts]
+      summary: List contracts visible to the caller
+      description: "Shipper sees own contracts; Carrier sees assigned contracts; Administrator and Auditor see all contracts."
+      parameters:
+        - name: state
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/ContractState" }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Visible contracts and an optional next-page cursor.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ContractSummary" }
+                  nextCursor: { type: [string, "null"] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /contracts/{contractId}:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    get:
+      tags: [Contracts]
+      summary: Get contract terms, current state, deductions, and history
+      description: "Shipper sees own contracts; Carrier sees assigned contracts; Administrator and Auditor see all. Auditor access is read-only."
+      responses:
+        "200":
+          description: Contract visible to the caller.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /contracts/{contractId}/confirm-booking:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    post:
+      tags: [Contracts]
+      summary: Confirm carrier booking
+      description: "Allowed: assigned Carrier. Idempotent retries with the same key return the original result."
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Booking confirmed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractActionResult" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /contracts/{contractId}/shipment-status:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    post:
+      tags: [Contracts]
+      summary: Append a shipment status update
+      description: "Allowed: assigned Carrier. Status timestamps must not regress."
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status, timestamp]
+              properties:
+                status: { type: string, enum: [Dispatched, CheckpointReached, ArrivedAtDestination] }
+                timestamp: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Status recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractActionResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /contracts/{contractId}/confirm-delivery:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    post:
+      tags: [Contracts]
+      summary: Confirm delivery and calculate deductions
+      description: "Allowed: assigned Carrier. The deadline is the order deadline; amounts are returned as integer paise decimal strings."
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [timestamp, podReference]
+              properties:
+                timestamp: { type: string, format: date-time }
+                podReference: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Delivery and SLA calculations recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [contractId, state, onTime, secondsLate, penaltyPaise, demurragePaise, netPaymentPaise]
+                properties:
+                  contractId: { type: string }
+                  state: { const: PenaltyCalculated }
+                  onTime: { type: boolean }
+                  secondsLate: { type: integer, minimum: 0 }
+                  penaltyPaise: { type: string, pattern: "^[0-9]+$" }
+                  demurragePaise: { type: string, pattern: "^[0-9]+$" }
+                  netPaymentPaise: { type: string, pattern: "^[0-9]+$" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /contracts/{contractId}/dispute:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    post:
+      tags: [Contracts]
+      summary: Raise a contract dispute
+      description: "Allowed: Shipper (own contract), assigned Carrier, Administrator. Disputes pause settlement."
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reasonCode]
+              properties:
+                reasonCode: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Dispute recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractActionResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /contracts/{contractId}/resolve-dispute:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    post:
+      tags: [Contracts]
+      summary: Resolve a contract dispute
+      description: "Allowed: Administrator with the configured arbitrator identity."
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [outcome]
+              properties:
+                outcome: { type: string, enum: [UpholdDeductions, WaivePenalty, WaiveAll] }
+      responses:
+        "200":
+          description: Dispute resolved; state returns to PenaltyCalculated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractActionResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Get the role-scoped dashboard summary
+      description: "Allowed: Shipper (own data), Administrator. Carrier and Auditor are denied by the current RBAC matrix."
+      responses:
+        "200":
+          description: Summary counts and aggregates for the authenticated caller's scope.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardSummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/users:
+    get:
+      tags: [Administration]
+      summary: List users
+      description: "Allowed: Administrator."
+      responses:
+        "200":
+          description: Users without password hashes or secrets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/UserSummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Administration]
+      summary: Create a demo/platform user
+      description: "Allowed: Administrator. Password is write-only and must never appear in logs or responses; new users are active by default."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [username, password, role]
+              properties:
+                username: { type: string, minLength: 1 }
+                password: { type: string, minLength: 12, writeOnly: true }
+                role: { $ref: "#/components/schemas/Role" }
+                chainAddress: { type: string, pattern: "^0x[0-9a-fA-F]{40}$" }
+      responses:
+        "201":
+          description: User created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserSummary" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/users/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    patch:
+      tags: [Administration]
+      summary: Update a user's role, status, or chain account
+      description: "Allowed: Administrator. Deactivate a user rather than deleting them; disabled users' tokens are rejected."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                role: { $ref: "#/components/schemas/Role" }
+                active: { type: boolean }
+                chainAddress: { type: [string, "null"], pattern: "^0x[0-9a-fA-F]{40}$" }
+      responses:
+        "200":
+          description: Updated user, with no credential material.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserSummary" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/wagons:
+    get:
+      tags: [Administration]
+      summary: List wagon master data
+      description: "Allowed: Administrator."
+      responses:
+        "200":
+          description: Wagon master records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "./ai-engine.schema.json#/$defs/wagon" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Administration]
+      summary: Add one wagon to master data
+      description: "Allowed: Administrator. Wagon IDs must be unique."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "./ai-engine.schema.json#/$defs/wagon" }
+      responses:
+        "201":
+          description: Wagon created.
+          content:
+            application/json:
+              schema: { $ref: "./ai-engine.schema.json#/$defs/wagon" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/wagons/{wagonId}:
+    parameters:
+      - name: wagonId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    put:
+      tags: [Administration]
+      summary: Update one wagon
+      description: "Allowed: Administrator. Update is rejected if the wagon ID in the body differs from the path ID. Set `available` to false to retire a wagon while preserving old plans."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "./ai-engine.schema.json#/$defs/wagon" }
+      responses:
+        "200":
+          description: Wagon updated.
+          content:
+            application/json:
+              schema: { $ref: "./ai-engine.schema.json#/$defs/wagon" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/routes:
+    get:
+      tags: [Administration]
+      summary: List route master data
+      description: "Allowed: Administrator."
+      responses:
+        "200":
+          description: Route master records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "./ai-engine.schema.json#/$defs/route" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Administration]
+      summary: Add one route to master data
+      description: "Allowed: Administrator. Route IDs must be unique."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "./ai-engine.schema.json#/$defs/route" }
+      responses:
+        "201":
+          description: Route created.
+          content:
+            application/json:
+              schema: { $ref: "./ai-engine.schema.json#/$defs/route" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/routes/{routeId}:
+    parameters:
+      - name: routeId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    put:
+      tags: [Administration]
+      summary: Update one route
+      description: "Allowed: Administrator. Update is rejected if the route ID in the body differs from the path ID."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "./ai-engine.schema.json#/$defs/route" }
+      responses:
+        "200":
+          description: Route updated.
+          content:
+            application/json:
+              schema: { $ref: "./ai-engine.schema.json#/$defs/route" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Administration]
+      summary: Retire a route from future optimizer inputs
+      description: "Allowed: Administrator. Historical plans and contract records remain unchanged."
+      responses:
+        "204":
+          description: Route retired; no response body.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /audit:
+    get:
+      tags: [Audit]
+      summary: Read the append-only platform audit trail
+      description: "Allowed: Administrator and Auditor (read-only)."
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Audit entries and an optional next-page cursor.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AuditEntry" }
+                  nextCursor: { type: [string, "null"] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    PlanId:
+      name: planId
+      in: path
+      required: true
+      schema: { type: string, minLength: 1 }
+    ContractId:
+      name: contractId
+      in: path
+      required: true
+      schema: { type: string, pattern: "^[1-9][0-9]*$" }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated key retained for the retry window; repeated keys with the same body return the original result.
+      schema: { type: string, minLength: 1, maxLength: 128 }
+  responses:
+    BadRequest:
+      description: Invalid request; field paths are included when available.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    UpstreamInvalidResponse:
+      description: An upstream service returned a payload that violates its frozen contract.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Forbidden:
+      description: Authenticated caller has the wrong role.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    NotFound:
+      description: Missing resource or resource not visible to caller.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Conflict:
+      description: Requested operation is invalid for the current state.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    DependencyUnavailable:
+      description: Blockchain or AI engine is unavailable; state-changing actions are queued and retried where applicable.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    UpstreamTimeout:
+      description: An upstream service did not respond within the configured timeout.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+  schemas:
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            fields:
+              type: object
+              additionalProperties: { type: string }
+    Role:
+      type: string
+      enum: [Shipper, Carrier, Administrator, Auditor]
+    UserSummary:
+      type: object
+      additionalProperties: false
+      required: [userId, username, role, active]
+      properties:
+        userId: { type: string }
+        username: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        active: { type: boolean }
+        chainAddress: { type: [string, "null"], pattern: "^0x[0-9a-fA-F]{40}$" }
+    OrderInput:
+      type: object
+      additionalProperties: false
+      required: [cargoType, quantityTonnes, destination, priority, deadline]
+      properties:
+        cargoType: { type: string, minLength: 1 }
+        quantityTonnes: { type: number, exclusiveMinimum: 0 }
+        destination: { type: string, minLength: 1 }
+        priority: { type: integer, minimum: 1, maximum: 3 }
+        deadline: { type: string, format: date-time }
+    AcceptPlanInput:
+      type: object
+      description: "The backend derives the shipper from the plan owner and `slaDeadline` as the earliest stated deadline among the accepted plan's orders; callers cannot override either."
+      additionalProperties: false
+      required: [carrierAddress, terms]
+      properties:
+        carrierAddress: { type: string, pattern: "^0x[0-9a-fA-F]{40}$" }
+        terms:
+          type: object
+          additionalProperties: false
+          required: [freightValuePaise, penaltyBpsPerBlock, penaltyBlockSeconds, freeHoldingHours, demurrageRatePaisePerWagonHour, wagonCount]
+          properties:
+            freightValuePaise: { type: string, pattern: "^[1-9][0-9]*$" }
+            penaltyBpsPerBlock: { type: integer, minimum: 0, maximum: 65535 }
+            penaltyBlockSeconds: { type: integer, minimum: 1, maximum: 4294967295 }
+            freeHoldingHours: { type: integer, minimum: 0, maximum: 65535 }
+            demurrageRatePaisePerWagonHour: { type: string, pattern: "^[0-9]+$" }
+            wagonCount: { type: integer, minimum: 0, maximum: 4294967295 }
+    ContractState:
+      type: string
+      enum: [Created, Booked, InTransit, Delivered, PenaltyCalculated, PaymentReleased, Closed, Disputed]
+    ContractSummary:
+      type: object
+      additionalProperties: false
+      required: [contractId, planId, state, shipperId, carrierId, freightValuePaise, slaDeadline]
+      properties:
+        contractId: { type: string, pattern: "^[1-9][0-9]*$" }
+        planId: { type: string }
+        state: { $ref: "#/components/schemas/ContractState" }
+        shipperId: { type: string }
+        carrierId: { type: string }
+        freightValuePaise: { type: string, pattern: "^[0-9]+$" }
+        slaDeadline: { type: string, format: date-time }
+    ContractDetail:
+      type: object
+      additionalProperties: false
+      required: [contractId, planId, state, shipperId, carrierId, terms, termsHash, assignments, penaltyPaise, demurragePaise, netPaymentPaise, history]
+      properties:
+        contractId: { type: string, pattern: "^[1-9][0-9]*$" }
+        planId: { type: string }
+        state: { $ref: "#/components/schemas/ContractState" }
+        shipperId: { type: string }
+        carrierId: { type: string }
+        terms: { $ref: "#/components/schemas/ContractTerms" }
+        termsHash: { type: string, pattern: "^0x[0-9a-fA-F]{64}$" }
+        assignments:
+          type: array
+          description: Immutable assignment snapshot from the accepted plan.
+          items: { $ref: "./ai-engine.schema.json#/$defs/assignment" }
+        penaltyPaise: { type: string, pattern: "^[0-9]+$" }
+        demurragePaise: { type: string, pattern: "^[0-9]+$" }
+        netPaymentPaise: { type: string, pattern: "^[0-9]+$" }
+        history:
+          type: array
+          items: { $ref: "#/components/schemas/ContractHistoryEntry" }
+    ContractTerms:
+      type: object
+      additionalProperties: false
+      required: [freightValuePaise, slaDeadline, penaltyBpsPerBlock, penaltyBlockSeconds, freeHoldingHours, demurrageRatePaisePerWagonHour, wagonCount]
+      properties:
+        freightValuePaise: { type: string, pattern: "^[1-9][0-9]*$" }
+        slaDeadline: { type: string, format: date-time }
+        penaltyBpsPerBlock: { type: integer, minimum: 0, maximum: 65535 }
+        penaltyBlockSeconds: { type: integer, minimum: 1, maximum: 4294967295 }
+        freeHoldingHours: { type: integer, minimum: 0, maximum: 65535 }
+        demurrageRatePaisePerWagonHour: { type: string, pattern: "^[0-9]+$" }
+        wagonCount: { type: integer, minimum: 0, maximum: 4294967295 }
+    ContractHistoryEntry:
+      type: object
+      additionalProperties: false
+      required: [action, actor, timestamp, dataHash]
+      properties:
+        action: { type: string }
+        actor: { type: string, pattern: "^0x[0-9a-fA-F]{40}$" }
+        timestamp: { type: string, format: date-time }
+        dataHash: { type: string, pattern: "^0x[0-9a-fA-F]{64}$" }
+    ContractActionResult:
+      type: object
+      additionalProperties: false
+      required: [contractId, state]
+      properties:
+        contractId: { type: string, pattern: "^[1-9][0-9]*$" }
+        state: { $ref: "#/components/schemas/ContractState" }
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, dependencies]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        dependencies:
+          type: object
+          additionalProperties: false
+          required: [aiEngine, blockchain, database]
+          properties:
+            aiEngine: { type: string, enum: [up, down] }
+            blockchain: { type: string, enum: [up, down] }
+            database: { type: string, enum: [up, down] }
+    DashboardSummary:
+      type: object
+      additionalProperties: false
+      required: [pendingOrders, activeContracts, deliveredContracts, totalFreightValuePaise]
+      properties:
+        pendingOrders: { type: integer, minimum: 0 }
+        activeContracts: { type: integer, minimum: 0 }
+        deliveredContracts: { type: integer, minimum: 0 }
+        totalFreightValuePaise: { type: string, pattern: "^[0-9]+$" }
+    AuditEntry:
+      type: object
+      additionalProperties: false
+      required: [auditId, userId, action, occurredAt, outcome]
+      properties:
+        auditId: { type: string }
+        userId: { type: string }
+        action: { type: string }
+        resourceId: { type: [string, "null"] }
+        occurredAt: { type: string, format: date-time }
+        outcome: { type: string, enum: [success, failure] }
