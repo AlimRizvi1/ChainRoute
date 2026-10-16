@@ -2,9 +2,11 @@ import json
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 from allocator import ALGORITHM, build_allocation_plan
 from models import AllocationPlan, OptimizeRequest
+from prediction import MODEL_PATH
 from synthetic_data import SYNTHETIC_START, generate_dataset
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -173,10 +175,32 @@ class AllocationInvariantTests(unittest.TestCase):
         )
         self.assertEqual(plan["runMetadata"]["algorithm"], ALGORITHM)
         self.assertTrue(plan["runMetadata"]["inputHash"].startswith("sha256:"))
-        self.assertEqual(plan["runMetadata"]["prediction"], {
-            "method": "heuristic_fallback",
-            "modelVersion": None,
-        })
+        self.assertEqual(
+            plan["runMetadata"]["prediction"]["method"], "logistic_regression"
+        )
+        self.assertTrue(
+            plan["runMetadata"]["prediction"]["modelVersion"].startswith("logreg-")
+        )
+        self.assertEqual(
+            plan["assignments"][0]["onTimeProbability"],
+            plan["assignments"][0]["score"],
+        )
+        AllocationPlan.model_validate_json(json.dumps(plan))
+
+    def test_missing_model_uses_fallback_and_marks_response(self) -> None:
+        request = make_request(
+            [order("ORD-1")], [wagon("WAG-1")], [route()]
+        )
+        with patch("prediction.MODEL_PATH", MODEL_PATH.with_name("missing-model.json")):
+            plan = build_allocation_plan(request)
+        self.assertEqual(
+            plan["runMetadata"]["prediction"],
+            {"method": "heuristic_fallback", "modelVersion": None},
+        )
+        self.assertEqual(
+            plan["assignments"][0]["onTimeProbability"],
+            plan["assignments"][0]["score"],
+        )
         AllocationPlan.model_validate_json(json.dumps(plan))
 
     def test_assignments_are_deterministic_even_when_request_order_changes(self) -> None:

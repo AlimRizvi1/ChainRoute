@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from models import AllocationPlan, Assignment, OptimizeRequest, Route, Wagon
+from prediction import apply_candidate_predictions
 from ranking import (
     MAX_ALTERNATIVES,
     CandidatePlan,
@@ -61,6 +62,9 @@ def build_allocation_plan(request: OptimizeRequest) -> dict:
         for candidate in candidates
         if _priority_profile(candidate, priority_by_order) == best_priority_profile
     ]
+    prediction_method, model_version = apply_candidate_predictions(
+        candidates, request.orders, request.routes
+    )
     ranked = rank_candidates(
         candidates,
         request.weights,
@@ -104,8 +108,8 @@ def build_allocation_plan(request: OptimizeRequest) -> dict:
                 "routes": len(request.routes),
             },
             "prediction": {
-                "method": "heuristic_fallback",
-                "modelVersion": None,
+                "method": prediction_method,
+                "modelVersion": model_version,
             },
         },
     }

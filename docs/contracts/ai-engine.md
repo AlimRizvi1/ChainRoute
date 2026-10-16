@@ -30,7 +30,7 @@ Accepts JSON matching the `optimizeRequest` definition in `ai-engine.schema.json
 - `metrics`: utilization is a percentage from 0 to 100; estimated cost is a decimal string of integer paise (never a floating-point JSON number); distance is km; on-time probability is from 0 to 1.
 - `unassignedOrders`: includes a stable reason code and user-readable message. Allowed reason codes are `NO_COMPATIBLE_WAGON`, `INCOMPATIBLE_WAGON_TYPE`, `NO_ROUTE`, `INSUFFICIENT_CAPACITY`, `NO_FEASIBLE_ASSIGNMENT`, and `TIME_BUDGET_EXCEEDED`.
 - `alternatives`: up to three distinct runner-up allocations, ordered by descending score with deterministic tie-breaking. An empty list is valid when the search found no runner-up.
-- `runMetadata`: records the input hash, chosen algorithm, weights, input counts, runtime, and whether logistic regression or the labelled heuristic fallback provided predictions.
+- `runMetadata`: records the input hash, chosen algorithm, weights, input counts, runtime, and whether logistic regression, the labelled heuristic fallback, or both (`mixed`) provided predictions. `modelVersion` identifies the trained artifact when the logistic model contributed; it is `null` when only the fallback was used.
 
 ### Errors
 
@@ -44,11 +44,18 @@ Invalid request: HTTP `400`, shared error body, `code: "VALIDATION_ERROR"`, and 
 - `inputHash` is `sha256:` followed by 64 lowercase hexadecimal characters. It is computed from the request serialized using RFC 8785 JSON Canonicalization Scheme (JCS), UTF-8 encoded; the same request produces the same hash.
 - The response example in `samples/allocation-plan.json` illustrates shape only; production scores and estimates are computed from the actual input/model.
 
-## Phase 5 scoring
+## Scoring and prediction
 
 - The deterministic OR-Tools CP-SAT search uses the Phase 4 heuristic plan as a feasible incumbent and hint, enforces priority tiers lexicographically, and searches within the requested budget. The phase-4 heuristics remain candidate fallbacks; duplicate allocations are removed before ranking.
-- Utilization is assigned tonnes divided by the capacity of selected wagons, as a percentage. Distance sums the selected route distance once per order. Cost is `250` paise per wagon-kilometre, rounded to the nearest paise after summation. On-time probability is a deadline-slack heuristic: for each feasible assignment, `0.5 + 0.5 × slack / (slack + transit time)`; the plan metric is the probability sum divided by all requested orders, so unassigned orders contribute zero.
+- Utilization is assigned tonnes divided by the capacity of selected wagons, as a percentage. Distance sums the selected route distance once per order. Cost is `250` paise per wagon-kilometre, rounded to the nearest paise after summation. The Phase 7 logistic regression predicts each assigned order's probability of arriving before its deadline from deadline slack relative to mean transit time and cargo-specific transit variability. The plan metric is the probability sum divided by all requested orders, so unassigned orders contribute zero.
 - Each metric is scaled to `[0, 1]`: on-time is already a probability, utilization is divided by 100, and cost efficiency is `clamp(1 - cost / maximum_possible_cost, 0, 1)`. The maximum possible cost uses the longest supplied route and all available wagons. If it is zero, cost efficiency is zero.
 - Let `N` be the number of orders, `C` the fraction assigned, and `M` the normalized weighted mean of the three scaled metrics. Score is `C + M / (N + 1)` (with `C = 0` for no orders). Across search candidates, lexicographic priority-tier counts are compared first; within the best tier profile, the bounded metric contribution makes coverage take precedence over metric gains. Weights are normalized by their sum, with all-zero weights treated as equal thirds.
-- This first on-time estimate is a transparent heuristic, not a trained prediction; Phase 7 may replace it.
 - A caller budget is clamped by validation, not silently adjusted: values below `0.05` or above `10` seconds are rejected with HTTP 400. If CP-SAT finds no new solution in time, the always-available feasible heuristic candidate is returned and ranked normally.
+
+### Phase 7 prediction model
+
+- The checked-in `ai-engine/on_time_model.json` is a deterministic logistic-regression artifact trained on 30,000 simulated lognormal transit outcomes. Features are normalized deadline slack and the synthetic cargo transit-variability factor (`grain`: 0.10, `coal`: 0.20, `steel`: 0.30).
+- The artifact records its training-data hash, content-derived `modelVersion`, 80/20 stratified split (seed 42), held-out probability MAE, and Brier score. The current held-out MAE is 0.0098 (tolerance: 0.10); this is synthetic-simulator validation, not a claim about real-world carrier performance.
+- Run `python ai-engine/train_prediction_model.py` to reproduce or refresh the model when its synthetic assumptions or data change. The trainer uses scikit-learn; inference uses the saved coefficients.
+- `runMetadata.prediction.method` is `logistic_regression`, `heuristic_fallback`, or `mixed`. The model version is `null` when only the fallback contributes; it is present when logistic regression contributes. Missing model files and unsupported assigned cargo categories use the labelled Phase 5 slack heuristic; a mixed plan reports `mixed`.
+- Slack ratios are bounded to `[-100, 100]` before inference. Invalid model artifacts or non-positive route transit times fail explicitly rather than silently returning a model-shaped result.

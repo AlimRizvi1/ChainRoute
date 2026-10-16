@@ -706,6 +706,8 @@ Candidate X: cheap, 60% on-time. Candidate Y: expensive, 95% on-time. Equal util
 
 **Decisions to Confirm.** The exact prediction target and its label source (recommended above, but confirm); the training/validation split strategy; the acceptable error tolerance; how often the model is retrained and on what trigger; how model version is recorded against each run (needed for Phase 8's traceability).
 
+**Decisions.** Alim approved per-order probability of on-time delivery, trained from deterministic synthetic lognormal transit simulations. Use an 80/20 stratified holdout split with seed 42 and require held-out probability MAE ≤ 0.10 against the simulator's known probability. Retrain explicitly with `python ai-engine/train_prediction_model.py` when the synthetic assumptions or training data change. Derive the model version from the training-data hash and fitted parameters; use the existing labelled heuristic whenever the artifact is unavailable or an assigned cargo category is not represented by the model.
+
 **Expected Input / Output.** Input for training: a dataset of past (or simulated) orders/routes with known outcomes. Input for inference: one order/route pair (or a batch) as already available inside the optimize pipeline. Output: a probability (0–1) per order, used by the scoring step; plus an indicator of whether the real model or the fallback estimate was used.
 
 **Test Cases**
@@ -728,10 +730,10 @@ Candidate X: cheap, 60% on-time. Candidate Y: expensive, 95% on-time. Equal util
 - Extreme or corrupted feature values reaching inference (for example, a negative transit time slipping through) — must be rejected or clamped, not passed silently into the model.
 
 **Acceptance Criteria**
-- [ ] The boundary-case and monotonicity tests pass.
-- [ ] A measured accuracy figure against a held-out set is recorded and meets the agreed tolerance.
-- [ ] The fallback path is exercised by an automated test and never throws.
-- [ ] The contracts doc notes which field in the response indicates real-model vs. fallback.
+- [x] The boundary-case and monotonicity tests pass.
+- [x] Held-out probability MAE is recorded and meets the agreed tolerance.
+- [x] The fallback path is exercised by an automated test and never throws.
+- [x] The contracts doc notes which field in the response indicates real-model vs. fallback.
 
 ---
 

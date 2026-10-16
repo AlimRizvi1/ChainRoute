@@ -108,7 +108,7 @@ class Alternative(StrictModel):
 
 
 class Prediction(StrictModel):
-    method: Literal["logistic_regression", "heuristic_fallback"]
+    method: Literal["logistic_regression", "heuristic_fallback", "mixed"]
     modelVersion: str | None
 
 

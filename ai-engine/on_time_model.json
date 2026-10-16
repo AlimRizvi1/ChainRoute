@@ -1,0 +1,23 @@
+{
+  "cargoVariability": {
+    "coal": 0.2,
+    "grain": 0.1,
+    "steel": 0.3
+  },
+  "coefficients": [
+    7.7953638710017445,
+    -0.1665554777286779
+  ],
+  "intercept": 0.08926747689743683,
+  "modelVersion": "logreg-fd10e2acfde0639b",
+  "training": {
+    "heldOutBrierScore": 0.01917574732590605,
+    "heldOutMae": 0.009775544874979444,
+    "maeTolerance": 0.1,
+    "sampleCount": 30000,
+    "seed": 42,
+    "source": "synthetic_lognormal_transit_simulation",
+    "trainingFraction": 0.8
+  },
+  "trainingDataHash": "sha256:b7a614214577ab84d4ea1d96ba35b87abe1e113b76e19676f134761aac99eff4"
+}

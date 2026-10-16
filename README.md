@@ -51,6 +51,15 @@ To stop the services while keeping the PostgreSQL volume, use `docker compose do
 
 Backend dependency probes are bounded by `DEPENDENCY_TIMEOUT_MS` (5 seconds by default); the dashboard allows up to 9 seconds for a health response. If a dependency is stopped or responds too slowly, `/health` stays HTTP 200 and reports `status: degraded` plus the down service. The dashboard refreshes automatically and shows textual and color-coded service states.
 
+Retrain Track 1's deterministic synthetic on-time model after changing its simulation assumptions or training data:
+
+```powershell
+python -m pip install -r ai-engine/requirements.txt
+python ai-engine/train_prediction_model.py
+```
+
+The generated model artifact records its content-derived version and held-out metrics. The current synthetic validation MAE is 0.0098 against the 0.10 tolerance; this measures fit to the simulator, not real-world delivery performance.
+
 ## Project layout
 
 ```text
@@ -86,7 +95,7 @@ Update this table as work is completed. Set a phase to **In progress** only when
 | 4 | Rule-based allocation agent (baseline) | Alim | Done | All [15 allocator tests](ai-engine/test_allocator.py) and [24 Phase 3 regression tests](ai-engine/test_synthetic_data.py) pass; 50 seeds each of plentiful/scarce data satisfy assignment invariants. Live `/v1/optimize` returns schema-shaped deadline-feasible allocations, preserves field-level 400 errors, and matches the sample request's expected wagon assignments. Baseline rules are documented in the [allocation contract](docs/contracts/allocation-baseline.md); Phase 5 supplies the finalized metrics and scoring. |
 | 5 | Objective scoring, weighting, and ranking | Alim | Done | All 52 AI-engine tests pass across [HTTP validation](ai-engine/test_api.py), [hand-built ranking cases](ai-engine/test_ranking.py), [Phase 4 allocation invariants](ai-engine/test_allocator.py), and [Phase 3 data validation](ai-engine/test_synthetic_data.py). Verified the API's field-specific 400 for a negative weight; hand-calculated 66.67% utilization and 75,000-paise cost; weight-driven what-if route changes; and distinct ranked alternatives. Scoring rules and approved cost/coverage decisions are recorded in the [AI engine contract](docs/contracts/ai-engine.md) and [decision log](docs/decisions.md); see the updated [response sample](samples/allocation-plan.json). |
 | 6 | Optimization agent (constraint-based search) | Alim | Done | All 59 AI-engine tests pass: [search/ranking](ai-engine/test_ranking.py), [HTTP validation](ai-engine/test_api.py), [allocation invariants](ai-engine/test_allocator.py), and [synthetic-data validation](ai-engine/test_synthetic_data.py). Verified the 300-order plentiful target and 1-second scarce-budget case. Deterministic single-worker CP-SAT prioritizes order classes, uses the baseline as a warm start/fallback, and returns schema-valid plans. The [saved scarce demo](samples/phase-6-scarce-demo.json) raises assignments from 1 to 2 and plan on-time probability from 0.490 to 0.958 versus the Phase 4 baseline. The budget and new `INCOMPATIBLE_WAGON_TYPE` reason are recorded in the [AI engine contract](docs/contracts/ai-engine.md). |
-| 7 | Machine-learning prediction component | Alim | Not started | |
+| 7 | Machine-learning prediction component | Alim | Done | All 69 AI-engine tests pass. Deterministic logistic regression uses 30,000 synthetic lognormal transit outcomes and a stratified 80/20 split (seed 42); held-out probability MAE is 0.0098 (≤ 0.10 tolerance). Boundary, monotonicity, determinism, unseen-cargo and missing-model fallback, ranking integration, and 300-order prediction performance are covered; 300 predictions measured 0.0010 s. Model version is content-derived; see [prediction contract](docs/contracts/ai-engine.md), [training command](ai-engine/train_prediction_model.py), and [decision log](docs/decisions.md). |
 | 8 | Traceability, logging, and performance validation | Alim | Not started | |
 
 ### Track 2 — Blockchain Settlement Layer
