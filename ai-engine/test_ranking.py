@@ -1,17 +1,21 @@
 import copy
+import json
+import time
 import unittest
 from datetime import timedelta
+from pathlib import Path
 
-from allocator import build_allocation_plan
+from allocator import STRATEGIES, _build_candidate, build_allocation_plan
 from models import Assignment, OptimizeRequest, Route, Wagon, Weights
 from ranking import (
     COST_PAISE_PER_WAGON_KM,
     CandidatePlan,
     calculate_metrics,
+    maximum_possible_cost_paise,
     normalize_weights,
     rank_candidates,
 )
-from synthetic_data import SYNTHETIC_START
+from synthetic_data import SYNTHETIC_START, generate_dataset
 
 
 def candidate(
@@ -94,7 +98,7 @@ def optimize_request(weights: dict[str, float]) -> OptimizeRequest:
                     "routeId": "RTE-SLOW-SHORT",
                     "origin": "Yard-0",
                     "destination": "Port-A",
-                    "distanceKm": 10,
+                    "distanceKm": 20,
                     "transitTimeSeconds": 3600,
                 },
                 {
@@ -278,6 +282,136 @@ class OptimizerRankingTests(unittest.TestCase):
         self.assertNotEqual(first["runId"], cost_plan["runId"])
         self.assertNotEqual(first["planId"], cost_plan["planId"])
         self.assertEqual(first, first_snapshot)
+        repeated = build_allocation_plan(on_time_request)
+        self.assertEqual(first["score"], repeated["score"])
+
+    def test_search_outperforms_baseline_by_reassigning_feasible_wagons(self) -> None:
+        demo_path = (
+            Path(__file__).resolve().parent.parent
+            / "samples"
+            / "phase-6-scarce-demo.json"
+        )
+        demo = json.loads(demo_path.read_text(encoding="utf-8"))
+        request = OptimizeRequest.model_validate(demo["request"])
+        baseline = _build_candidate(request, STRATEGIES[0])
+        baseline = rank_candidates(
+            [baseline],
+            request.weights,
+            len(request.orders),
+            maximum_possible_cost_paise(request.wagons, request.routes),
+        )[0]
+        plan = build_allocation_plan(request)
+        self.assertEqual(
+            {assignment["orderId"] for assignment in plan["assignments"]},
+            set(demo["phase6Search"]["assignedOrderIds"]),
+        )
+        self.assertEqual(
+            {
+                assignment["orderId"]: assignment["route"]["routeId"]
+                for assignment in plan["assignments"]
+            },
+            demo["phase6Search"]["routes"],
+        )
+        self.assertEqual(
+            {item["orderId"] for item in baseline.assignments},
+            set(demo["phase4Baseline"]["assignedOrderIds"]),
+        )
+        self.assertGreater(
+            plan["metrics"]["onTimeProbability"],
+            baseline.metrics["onTimeProbability"],
+        )
+        self.assertGreaterEqual(plan["score"], baseline.score)
+        self.assertEqual(plan["runMetadata"]["algorithm"], "ortools-cp-sat-v1")
+
+    def test_scarce_fixture_score_is_never_worse_than_phase_four_baseline(self) -> None:
+        dataset = json.loads(
+            (
+                Path(__file__).resolve().parent.parent
+                / "samples"
+                / "scarce-dataset.json"
+            ).read_text(encoding="utf-8")
+        )
+        request = OptimizeRequest.model_validate(
+            {
+                **dataset,
+                "weights": {"onTime": 0.5, "cost": 0.3, "utilization": 0.2},
+                "timeBudgetSeconds": 0.05,
+            }
+        )
+        baseline = _build_candidate(request, STRATEGIES[0])
+        baseline = rank_candidates(
+            [baseline],
+            request.weights,
+            len(request.orders),
+            maximum_possible_cost_paise(request.wagons, request.routes),
+        )[0]
+        plan = build_allocation_plan(request)
+        self.assertGreaterEqual(plan["score"], baseline.score)
+
+    def test_one_second_budget_returns_a_feasible_scarce_plan_promptly(self) -> None:
+        dataset = generate_dataset(100, 19, "scarce")
+        request = OptimizeRequest.model_validate(
+            {
+                **dataset,
+                "weights": {"onTime": 0.5, "cost": 0.3, "utilization": 0.2},
+                "timeBudgetSeconds": 1,
+            }
+        )
+        started = time.perf_counter()
+        plan = build_allocation_plan(request)
+        elapsed = time.perf_counter() - started
+        self.assertLess(elapsed, 1.5)
+        self.assertGreater(len(plan["assignments"]), 0)
+        self.assertEqual(
+            len(plan["assignments"]) + len(plan["unassignedOrders"]),
+            len(request.orders),
+        )
+
+    def test_300_order_plentiful_scenario_finishes_within_phase_performance_target(
+        self,
+    ) -> None:
+        dataset = generate_dataset(300, 11, "plentiful")
+        request = OptimizeRequest.model_validate(
+            {
+                **dataset,
+                "weights": {"onTime": 0.5, "cost": 0.3, "utilization": 0.2},
+                "timeBudgetSeconds": 1,
+            }
+        )
+        started = time.perf_counter()
+        plan = build_allocation_plan(request)
+        elapsed = time.perf_counter() - started
+        self.assertLess(elapsed, 20)
+        self.assertEqual(
+            len(plan["assignments"]) + len(plan["unassignedOrders"]),
+            len(request.orders),
+        )
+
+    def test_priority_tier_is_enforced_before_lower_priority_orders(self) -> None:
+        request = optimize_request({"onTime": 0, "cost": 1, "utilization": 0})
+        request.orders = [
+            request.orders[0].model_copy(update={"priority": 3}),
+            request.orders[0].model_copy(
+                update={"orderId": "ORD-1-HIGH", "priority": 1}
+            ),
+        ]
+        plan = build_allocation_plan(request)
+        self.assertEqual(
+            [item["orderId"] for item in plan["assignments"]],
+            ["ORD-1-HIGH"],
+        )
+
+    def test_search_does_not_round_insufficient_wagon_capacity_up(self) -> None:
+        request = optimize_request({"onTime": 1, "cost": 0, "utilization": 0})
+        request.orders = [
+            request.orders[0].model_copy(update={"quantityTonnes": 20.0001})
+        ]
+        plan = build_allocation_plan(request)
+        self.assertEqual(plan["assignments"], [])
+        self.assertEqual(
+            plan["unassignedOrders"][0]["reasonCode"],
+            "INSUFFICIENT_CAPACITY",
+        )
 
     def test_alternatives_are_distinct_ranked_and_limited(self) -> None:
         request = optimize_request({"onTime": 1, "cost": 1, "utilization": 1})

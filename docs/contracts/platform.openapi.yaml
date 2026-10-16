@@ -105,6 +105,11 @@ paths:
               properties:
                 weights:
                   $ref: "./ai-engine.schema.json#/$defs/weights"
+                timeBudgetSeconds:
+                  type: number
+                  minimum: 0.05
+                  maximum: 10
+                  default: 1
       responses:
         "200":
           description: Plan generated and persisted.

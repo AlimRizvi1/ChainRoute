@@ -3,9 +3,27 @@ import json
 import unittest
 
 from app import app
+from models import OptimizeRequest
 
 
 class OptimizeHttpValidationTests(unittest.TestCase):
+    def test_search_budget_is_bounded(self) -> None:
+        common = {
+            "orders": [],
+            "wagons": [],
+            "routes": [],
+            "weights": {"onTime": 1, "cost": 0, "utilization": 0},
+        }
+        for budget in (0.05, 1, 10):
+            OptimizeRequest.model_validate(
+                {**common, "timeBudgetSeconds": budget}
+            )
+        for budget in (0.049, 10.001):
+            with self.subTest(budget=budget), self.assertRaises(ValueError):
+                OptimizeRequest.model_validate(
+                    {**common, "timeBudgetSeconds": budget}
+                )
+
     def test_negative_weight_returns_field_specific_http_400(self) -> None:
         body = json.dumps(
             {

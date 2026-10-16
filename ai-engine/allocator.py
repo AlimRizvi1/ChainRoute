@@ -13,9 +13,10 @@ from ranking import (
     maximum_possible_cost_paise,
     rank_candidates,
 )
+from search_agent import DEFAULT_TIME_BUDGET_SECONDS, build_search_candidates
 from synthetic_data import CARGO_TO_WAGON, SYNTHETIC_START
 
-ALGORITHM = "rule-based-ranked-v1"
+ALGORITHM = "ortools-cp-sat-v1"
 DWELL_TIME = timedelta(0)
 
 
@@ -36,7 +37,30 @@ STRATEGIES = (
 
 def build_allocation_plan(request: OptimizeRequest) -> dict:
     started_at = time.perf_counter()
-    candidates = [_build_candidate(request, strategy) for strategy in STRATEGIES]
+    heuristic_candidates = [
+        _build_candidate(request, strategy) for strategy in STRATEGIES
+    ]
+    candidates = [
+        *heuristic_candidates,
+        *build_search_candidates(
+            request,
+            heuristic_candidates[0],
+            (
+                request.timeBudgetSeconds
+                if request.timeBudgetSeconds is not None
+                else DEFAULT_TIME_BUDGET_SECONDS
+            ),
+        ),
+    ]
+    priority_by_order = {order.orderId: order.priority for order in request.orders}
+    best_priority_profile = max(
+        _priority_profile(candidate, priority_by_order) for candidate in candidates
+    )
+    candidates = [
+        candidate
+        for candidate in candidates
+        if _priority_profile(candidate, priority_by_order) == best_priority_profile
+    ]
     ranked = rank_candidates(
         candidates,
         request.weights,
@@ -185,8 +209,8 @@ def _build_candidate(
             unassigned_orders.append(
                 _unassigned(
                     order.orderId,
-                    "NO_COMPATIBLE_WAGON",
-                    f"No unused available {expected_wagon_type} wagons are at a route origin.",
+                    "INCOMPATIBLE_WAGON_TYPE",
+                    f"No {expected_wagon_type} wagon is located at a route origin.",
                 )
             )
             continue
@@ -293,3 +317,13 @@ def _unassigned(order_id: str, reason_code: str, message: str) -> dict[str, str]
         "reasonCode": reason_code,
         "message": message,
     }
+
+
+def _priority_profile(
+    candidate: CandidatePlan, priority_by_order: dict[str, int]
+) -> tuple[int, int, int]:
+    assigned_ids = {assignment["orderId"] for assignment in candidate.assignments}
+    return tuple(
+        sum(priority_by_order[order_id] == priority for order_id in assigned_ids)
+        for priority in (1, 2, 3)
+    )

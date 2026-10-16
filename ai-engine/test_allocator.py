@@ -17,7 +17,13 @@ def make_request(
     routes: list[dict],
 ) -> OptimizeRequest:
     return OptimizeRequest.model_validate(
-        {"orders": orders, "wagons": wagons, "routes": routes, "weights": WEIGHTS}
+        {
+            "orders": orders,
+            "wagons": wagons,
+            "routes": routes,
+            "weights": WEIGHTS,
+            "timeBudgetSeconds": 0.05,
+        }
     )
 
 
@@ -216,7 +222,7 @@ class AllocationEdgeCaseTests(unittest.TestCase):
             )
         )
         self.assertEqual(
-            plan["unassignedOrders"][0]["reasonCode"], "NO_COMPATIBLE_WAGON"
+            plan["unassignedOrders"][0]["reasonCode"], "INCOMPATIBLE_WAGON_TYPE"
         )
 
     def test_capacity_shortage_reports_insufficient_capacity(self) -> None:
@@ -282,7 +288,7 @@ class AllocationEdgeCaseTests(unittest.TestCase):
             {"ORD-B", "ORD-Z"},
         )
 
-    def test_earlier_deadline_precedes_id_within_priority(self) -> None:
+    def test_later_deadline_can_win_same_priority_for_better_on_time_score(self) -> None:
         earlier_deadline = SYNTHETIC_START + timedelta(hours=2)
         later_deadline = SYNTHETIC_START + timedelta(days=2)
         plan = build_allocation_plan(
@@ -295,7 +301,7 @@ class AllocationEdgeCaseTests(unittest.TestCase):
                 [route()],
             )
         )
-        self.assertEqual(plan["assignments"][0]["orderId"], "ORD-Z")
+        self.assertEqual(plan["assignments"][0]["orderId"], "ORD-A")
 
     def test_route_ties_use_shortest_distance_then_route_id(self) -> None:
         plan = build_allocation_plan(

@@ -63,7 +63,8 @@
         "orders": { "type": "array", "items": { "$ref": "#/$defs/order" } },
         "wagons": { "type": "array", "items": { "$ref": "#/$defs/wagon" } },
         "routes": { "type": "array", "items": { "$ref": "#/$defs/route" } },
-        "weights": { "$ref": "#/$defs/weights" }
+        "weights": { "$ref": "#/$defs/weights" },
+        "timeBudgetSeconds": { "type": ["number", "null"], "minimum": 0.05, "maximum": 10 }
       }
     },
     "routeAssignment": {
@@ -111,7 +112,7 @@
         "orderId": { "type": "string", "minLength": 1 },
         "reasonCode": {
           "type": "string",
-          "enum": ["NO_COMPATIBLE_WAGON", "NO_ROUTE", "INSUFFICIENT_CAPACITY", "NO_FEASIBLE_ASSIGNMENT", "TIME_BUDGET_EXCEEDED"]
+          "enum": ["NO_COMPATIBLE_WAGON", "INCOMPATIBLE_WAGON_TYPE", "NO_ROUTE", "INSUFFICIENT_CAPACITY", "NO_FEASIBLE_ASSIGNMENT", "TIME_BUDGET_EXCEEDED"]
         },
         "message": { "type": "string", "minLength": 1 }
       }

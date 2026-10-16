@@ -57,6 +57,9 @@ class OptimizeRequest(StrictModel):
     wagons: list[Wagon]
     routes: list[Route]
     weights: Weights
+    timeBudgetSeconds: Annotated[
+        float | None, Field(ge=0.05, le=10, allow_inf_nan=False)
+    ] = None
 
 
 class RouteAssignment(StrictModel):
@@ -88,6 +91,7 @@ class UnassignedOrder(StrictModel):
     orderId: str = Field(min_length=1)
     reasonCode: Literal[
         "NO_COMPATIBLE_WAGON",
+        "INCOMPATIBLE_WAGON_TYPE",
         "NO_ROUTE",
         "INSUFFICIENT_CAPACITY",
         "NO_FEASIBLE_ASSIGNMENT",

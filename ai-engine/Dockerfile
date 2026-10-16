@@ -11,6 +11,7 @@ COPY ai-engine/app.py .
 COPY ai-engine/allocator.py .
 COPY ai-engine/models.py .
 COPY ai-engine/ranking.py .
+COPY ai-engine/search_agent.py .
 COPY ai-engine/synthetic_data.py .
 
 EXPOSE 8000

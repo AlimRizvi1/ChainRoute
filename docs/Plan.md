@@ -233,7 +233,7 @@ These are **proposed defaults**. Confirm or change them as a team in **Phase 1**
 
 Frozen in Phase 1, built in Phases 3–8. Minimum shape:
 
-- Request: `orders[]` (cargo type, quantity, destination, priority, deadline), `wagons[]` (capacity, type, location, availability), `routes[]` (origin, destination, distance, transit time), `weights` (on-time, cost, utilization — finite nonnegative values, normalized by the engine).
+- Request: `orders[]` (cargo type, quantity, destination, priority, deadline), `wagons[]` (capacity, type, location, availability), `routes[]` (origin, destination, distance, transit time), `weights` (on-time, cost, utilization — finite nonnegative values, normalized by the engine), and optional `timeBudgetSeconds` (0.05–10; default 1).
 - Response: `planId`, `runId`, `assignments[]` (order → wagons → route → depart/ETA), `metrics` (utilization %, cost, distance, on-time probability), `unassignedOrders[]` with reason codes, `alternatives[]` (ranked runners-up).
 
 ### 8.2 The contract lifecycle interface (Track 2 → Track 3)
@@ -658,7 +658,7 @@ Candidate X: cheap, 60% on-time. Candidate Y: expensive, 95% on-time. Equal util
 - Feed the agent's candidates into the Phase 5 scoring/ranking machinery, so weights still control the final choice.
 - Add the new unassigned-order reason for a type mismatch.
 
-**Decisions to Confirm.** The specific search technique (record which one and why — this is the decision flagged in §1); the default and minimum time budget; whether the Phase 4 rule-based agent is kept as a fast fallback or as a warm start for the search.
+**Decisions.** Alim approved deterministic OR-Tools CP-SAT, the Phase 4 greedy plan as a warm-start incumbent, and a 1-second default budget with bounded caller overrides from 0.05 to 10 seconds. The solver uses one search worker and seed 0 for reproducibility. Higher-priority assignment counts are optimized lexicographically before metric weighting.
 
 **Expected Input / Output.** Input: identical to Phase 4's `optimize` request, plus an optional time-budget override. Output: identical `AllocationPlan` shape; internally, the candidate(s) now come from the search agent instead of (or alongside) the rule-based one.
 
@@ -683,9 +683,9 @@ Candidate X: cheap, 60% on-time. Candidate Y: expensive, 95% on-time. Equal util
 - A dataset small enough that the search agent and the baseline produce the exact same plan — this is a valid outcome, not a bug; tests should allow for it.
 
 **Acceptance Criteria**
-- [ ] All test cases pass.
-- [ ] A saved scarce-capacity sample dataset exists that visibly demonstrates the search agent outperforming the baseline, for later use in the demo.
-- [ ] The new reason code is written into `docs/contracts/`.
+- [x] Search, priority, compatibility, determinism, budget, scale, and allocation-invariant tests pass.
+- [x] A saved scarce-capacity sample demonstrates a higher on-time probability and full order coverage than the Phase 4 baseline.
+- [x] The new `INCOMPATIBLE_WAGON_TYPE` reason code is included in the AI engine contract and schema.
 
 ---
 
