@@ -39,6 +39,14 @@ When the services report healthy, open the dashboard at <http://localhost:5173>.
 
 The AI optimize endpoint is `POST http://localhost:8000/v1/optimize`; it validates the Phase 1 request and returns the canned sample plan. The deployed placeholder contract address and ABI can be inspected at <http://localhost:8080/blockchain/contract>.
 
+### Track 1 data generation and validation
+
+Regenerate the deterministic 25-order `plentiful` and `scarce` datasets with `python ai-engine/generate_samples.py`; the defaults use seed `1`. The data rules and batch-validation result format are documented in the [synthetic data contract](docs/contracts/synthetic-data.md). Run the Track 1 tests with:
+
+```powershell
+python -m unittest discover -s ai-engine -p "test_*.py"
+```
+
 To stop the services while keeping the PostgreSQL volume, use `docker compose down`. To remove the database and deployed-contract volumes and prove a clean restart, use `docker compose down -v` followed by `docker compose up --build`.
 
 Backend dependency probes are bounded by `DEPENDENCY_TIMEOUT_MS` (5 seconds by default); the dashboard allows up to 9 seconds for a health response. If a dependency is stopped or responds too slowly, `/health` stays HTTP 200 and reports `status: degraded` plus the down service. The dashboard refreshes automatically and shows textual and color-coded service states.
@@ -46,13 +54,13 @@ Backend dependency probes are bounded by `DEPENDENCY_TIMEOUT_MS` (5 seconds by d
 ## Project layout
 
 ```text
-ai-engine/          Track 1 — Python allocation service
+ai-engine/          Track 1 — Python allocation service, data generator and validators
 blockchain/         Track 2 — Solidity contracts and deployment
 backend/            Track 3 — TypeScript API
 dashboard/          Track 3 — TypeScript web UI
-samples/            Shared interface examples (Phase 1)
+samples/            Phase 1 API examples and Phase 3 synthetic datasets
 docs/
-  contracts/        Cross-track contract drafts and schemas (Phase 1)
+  contracts/        Cross-track schemas and synthetic-data rules
   decisions.md      Team decisions for the plan
   Plan.md           Full technical development plan
 docker-compose.yml  Local walking skeleton (Phase 2)
@@ -74,7 +82,7 @@ Update this table as work is completed. Set a phase to **In progress** only when
 
 | Phase | Work | Owner | Status | Evidence / notes |
 |---|---|---|---|---|
-| 3 | Synthetic data generation and input validation | Alim | Not started | |
+| 3 | Synthetic data generation and input validation | Alim | Done | [24 automated tests](ai-engine/test_synthetic_data.py) pass, including 50 seeds for both capacity scenarios and generated-record validation. Reproducible 25-order fixtures: [plentiful](samples/plentiful-dataset.json), [scarce](samples/scarce-dataset.json); rules and decisions: [synthetic-data contract](docs/contracts/synthetic-data.md), [decision log](docs/decisions.md). |
 | 4 | Rule-based allocation agent (baseline) | Alim | Not started | |
 | 5 | Objective scoring, weighting, and ranking | Alim | Not started | |
 | 6 | Optimization agent (constraint-based search) | Alim | Not started | |

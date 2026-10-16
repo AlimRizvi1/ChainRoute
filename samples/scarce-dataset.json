@@ -1,0 +1,635 @@
+{
+  "orders": [
+    {
+      "orderId": "ORD-0001",
+      "cargoType": "coal",
+      "quantityTonnes": 80,
+      "destination": "Port-A",
+      "priority": 3,
+      "deadline": "2026-01-07T20:05:00Z"
+    },
+    {
+      "orderId": "ORD-0002",
+      "cargoType": "steel",
+      "quantityTonnes": 80,
+      "destination": "Plant-B",
+      "priority": 1,
+      "deadline": "2026-01-07T20:05:00Z"
+    },
+    {
+      "orderId": "ORD-0003",
+      "cargoType": "grain",
+      "quantityTonnes": 100,
+      "destination": "Plant-B",
+      "priority": 3,
+      "deadline": "2026-01-07T20:05:00Z"
+    },
+    {
+      "orderId": "ORD-0004",
+      "cargoType": "grain",
+      "quantityTonnes": 40,
+      "destination": "Port-A",
+      "priority": 1,
+      "deadline": "2026-01-07T20:05:00Z"
+    },
+    {
+      "orderId": "ORD-0005",
+      "cargoType": "steel",
+      "quantityTonnes": 100,
+      "destination": "Depot-C",
+      "priority": 2,
+      "deadline": "2026-01-09T04:00:00Z"
+    },
+    {
+      "orderId": "ORD-0006",
+      "cargoType": "steel",
+      "quantityTonnes": 100,
+      "destination": "Depot-C",
+      "priority": 3,
+      "deadline": "2026-01-09T04:00:00Z"
+    },
+    {
+      "orderId": "ORD-0007",
+      "cargoType": "coal",
+      "quantityTonnes": 40,
+      "destination": "Depot-C",
+      "priority": 2,
+      "deadline": "2026-01-08T03:00:00Z"
+    },
+    {
+      "orderId": "ORD-0008",
+      "cargoType": "coal",
+      "quantityTonnes": 40,
+      "destination": "Port-D",
+      "priority": 2,
+      "deadline": "2026-01-09T10:00:00Z"
+    },
+    {
+      "orderId": "ORD-0009",
+      "cargoType": "coal",
+      "quantityTonnes": 100,
+      "destination": "Depot-C",
+      "priority": 3,
+      "deadline": "2026-01-09T04:00:00Z"
+    },
+    {
+      "orderId": "ORD-0010",
+      "cargoType": "grain",
+      "quantityTonnes": 60,
+      "destination": "Plant-B",
+      "priority": 1,
+      "deadline": "2026-01-09T08:00:00Z"
+    },
+    {
+      "orderId": "ORD-0011",
+      "cargoType": "steel",
+      "quantityTonnes": 60,
+      "destination": "Port-D",
+      "priority": 1,
+      "deadline": "2026-01-07T20:05:00Z"
+    },
+    {
+      "orderId": "ORD-0012",
+      "cargoType": "steel",
+      "quantityTonnes": 60,
+      "destination": "Port-A",
+      "priority": 3,
+      "deadline": "2026-01-07T20:05:00Z"
+    },
+    {
+      "orderId": "ORD-0013",
+      "cargoType": "grain",
+      "quantityTonnes": 60,
+      "destination": "Plant-B",
+      "priority": 2,
+      "deadline": "2026-01-08T07:00:00Z"
+    },
+    {
+      "orderId": "ORD-0014",
+      "cargoType": "coal",
+      "quantityTonnes": 80,
+      "destination": "Port-D",
+      "priority": 3,
+      "deadline": "2026-01-09T10:00:00Z"
+    },
+    {
+      "orderId": "ORD-0015",
+      "cargoType": "coal",
+      "quantityTonnes": 80,
+      "destination": "Port-D",
+      "priority": 2,
+      "deadline": "2026-01-08T09:00:00Z"
+    },
+    {
+      "orderId": "ORD-0016",
+      "cargoType": "grain",
+      "quantityTonnes": 80,
+      "destination": "Port-D",
+      "priority": 3,
+      "deadline": "2026-01-08T09:00:00Z"
+    },
+    {
+      "orderId": "ORD-0017",
+      "cargoType": "grain",
+      "quantityTonnes": 40,
+      "destination": "Depot-C",
+      "priority": 2,
+      "deadline": "2026-01-09T04:00:00Z"
+    },
+    {
+      "orderId": "ORD-0018",
+      "cargoType": "coal",
+      "quantityTonnes": 60,
+      "destination": "Plant-B",
+      "priority": 3,
+      "deadline": "2026-01-08T07:00:00Z"
+    },
+    {
+      "orderId": "ORD-0019",
+      "cargoType": "steel",
+      "quantityTonnes": 60,
+      "destination": "Depot-C",
+      "priority": 2,
+      "deadline": "2026-01-08T03:00:00Z"
+    },
+    {
+      "orderId": "ORD-0020",
+      "cargoType": "grain",
+      "quantityTonnes": 40,
+      "destination": "Port-A",
+      "priority": 2,
+      "deadline": "2026-01-08T05:00:00Z"
+    },
+    {
+      "orderId": "ORD-0021",
+      "cargoType": "grain",
+      "quantityTonnes": 80,
+      "destination": "Port-D",
+      "priority": 3,
+      "deadline": "2026-01-08T09:00:00Z"
+    },
+    {
+      "orderId": "ORD-0022",
+      "cargoType": "steel",
+      "quantityTonnes": 60,
+      "destination": "Plant-B",
+      "priority": 3,
+      "deadline": "2026-01-09T08:00:00Z"
+    },
+    {
+      "orderId": "ORD-0023",
+      "cargoType": "steel",
+      "quantityTonnes": 100,
+      "destination": "Port-A",
+      "priority": 2,
+      "deadline": "2026-01-09T06:00:00Z"
+    },
+    {
+      "orderId": "ORD-0024",
+      "cargoType": "grain",
+      "quantityTonnes": 80,
+      "destination": "Port-A",
+      "priority": 2,
+      "deadline": "2026-01-07T20:05:00Z"
+    },
+    {
+      "orderId": "ORD-0025",
+      "cargoType": "coal",
+      "quantityTonnes": 80,
+      "destination": "Port-A",
+      "priority": 1,
+      "deadline": "2026-01-07T20:05:00Z"
+    }
+  ],
+  "wagons": [
+    {
+      "wagonId": "WAG-0001",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0002",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0003",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0004",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0005",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0006",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0007",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0008",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0009",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0010",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0011",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0012",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0013",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0014",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0015",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0016",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0017",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0018",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": false
+    },
+    {
+      "wagonId": "WAG-0019",
+      "capacityTonnes": 20,
+      "wagonType": "covered",
+      "location": "Yard-0",
+      "available": false
+    },
+    {
+      "wagonId": "WAG-0020",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0021",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0022",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0023",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0024",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0025",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0026",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0027",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0028",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0029",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0030",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0031",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0032",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0033",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0034",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0035",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0036",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": false
+    },
+    {
+      "wagonId": "WAG-0037",
+      "capacityTonnes": 20,
+      "wagonType": "open",
+      "location": "Yard-0",
+      "available": false
+    },
+    {
+      "wagonId": "WAG-0038",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0039",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0040",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0041",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0042",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0043",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0044",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0045",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0046",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0047",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0048",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0049",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0050",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0051",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0052",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0053",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0054",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0055",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": true
+    },
+    {
+      "wagonId": "WAG-0056",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": false
+    },
+    {
+      "wagonId": "WAG-0057",
+      "capacityTonnes": 20,
+      "wagonType": "flat",
+      "location": "Yard-0",
+      "available": false
+    }
+  ],
+  "routes": [
+    {
+      "routeId": "RTE-001",
+      "origin": "Yard-0",
+      "destination": "Port-A",
+      "distanceKm": 120,
+      "transitTimeSeconds": 36000
+    },
+    {
+      "routeId": "RTE-002",
+      "origin": "Yard-0",
+      "destination": "Plant-B",
+      "distanceKm": 180,
+      "transitTimeSeconds": 43200
+    },
+    {
+      "routeId": "RTE-003",
+      "origin": "Yard-0",
+      "destination": "Depot-C",
+      "distanceKm": 90,
+      "transitTimeSeconds": 28800
+    },
+    {
+      "routeId": "RTE-004",
+      "origin": "Yard-0",
+      "destination": "Port-D",
+      "distanceKm": 210,
+      "transitTimeSeconds": 50400
+    }
+  ]
+}

@@ -12,6 +12,7 @@ Phase 1 decisions and interface contracts approved by all three team members on 
 | 6 | On-chain caller permissions | Operator creates agreements, releases payment, and closes contracts; assigned carrier confirms booking, posts shipment status, and confirms delivery; either contract party may raise a dispute; configured arbitrator/admin resolves it; reads are public. Carrier/party identity arguments must match `msg.sender`. | Matches the plan's operator/carrier model while enforcing party identity in the contract, not only in the backend. | Alim, Parth, and Elish approved, 2026-10-15 |
 | 7 | Track 3 backend language | TypeScript on Node.js 22. No contract shape depends on this choice. | One language/toolchain for the API and dashboard owner, while keeping the wire contracts language-neutral. | Alim, Parth, and Elish approved, 2026-10-15 |
 | 8 | Additional performance target | Backend read endpoints: p95 below 500 ms with 20 concurrent clients in normal demo conditions. No additional target is set for other endpoints; the optimizer retains the plan's qualitative target. | A measurable read-path target is useful for acceptance without over-constraining optimizer or blockchain latency. | Alim, Parth, and Elish approved, 2026-10-15 |
+| 9 | Phase 3 synthetic categories, compatibility, and base | Cargo `grain`, `coal`, `steel`; wagon types `covered`, `open`, `flat`; strict pairs grain→covered, coal→open, steel→flat. Use `Yard-0` as the base and `Port-A`, `Plant-B`, `Depot-C`, and `Port-D` as destinations. | Reuses the Phase 1 fixture vocabulary, gives Phase 4/6 a deterministic compatibility table, and keeps generated routes consistent with the shared example. This is the synthetic-data domain, not a closed set for the open-string API schema. | Alim approved, 2026-10-16 |
 
 ## Review and sign-off
 
@@ -27,7 +28,6 @@ The development plan calls out additional choices in later phases; they are not 
 
 | Phase | Deferred decision |
 |---|---|
-| 3 | Synthetic cargo/wagon categories and compatibility rules |
 | 6 | CP-SAT objective/search budget and tie-breaking specifics |
 | 7 | Training/validation split, accuracy tolerance, training-data source/retraining trigger, and model-version policy |
 | 8 | Track 1 run-log storage implementation |
