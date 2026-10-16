@@ -537,8 +537,8 @@ Owner: the member responsible for optimization and machine learning. Requirement
 - A duplicate ID across two records — define and test the behaviour (recommended: reject the second occurrence with a reason).
 
 **Acceptance Criteria**
-- [ ] Every rejection path above has a passing automated test.
-- [ ] Both named scenarios can be generated with one call each and saved as sample files for later phases.
+- [x] Every rejection path above has a passing automated test.
+- [x] Both named scenarios can be generated with one call each and saved as sample files for later phases.
 
 ---
 
@@ -583,8 +583,8 @@ Owner: the member responsible for optimization and machine learning. Requirement
 - Two orders competing for the same last wagon — the behaviour must be deterministic (same winner every run with the same input), not a race.
 
 **Acceptance Criteria**
-- [ ] All invariant tests pass across at least 50 randomly seeded datasets, not just one fixed example.
-- [ ] The real `optimize` endpoint is live and Track 3 can now integrate against it instead of the stub.
+- [x] All invariant tests pass across at least 50 randomly seeded datasets, not just one fixed example.
+- [x] The real `optimize` endpoint is live and Track 3 can now integrate against it instead of the stub.
 
 ---
 

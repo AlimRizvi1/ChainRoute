@@ -37,7 +37,7 @@ docker compose up --build
 
 When the services report healthy, open the dashboard at <http://localhost:5173>. The backend health endpoint is <http://localhost:8080/health>; Track 1 is at <http://localhost:8000/health>, and the local JSON-RPC node is at <http://localhost:8545>.
 
-The AI optimize endpoint is `POST http://localhost:8000/v1/optimize`; it validates the Phase 1 request and returns the canned sample plan. The deployed placeholder contract address and ABI can be inspected at <http://localhost:8080/blockchain/contract>.
+The AI optimize endpoint is `POST http://localhost:8000/v1/optimize`; it validates the Phase 1 request and returns a deterministic, deadline-feasible rule-based allocation. The deployed placeholder contract address and ABI can be inspected at <http://localhost:8080/blockchain/contract>.
 
 ### Track 1 data generation and validation
 
@@ -83,7 +83,7 @@ Update this table as work is completed. Set a phase to **In progress** only when
 | Phase | Work | Owner | Status | Evidence / notes |
 |---|---|---|---|---|
 | 3 | Synthetic data generation and input validation | Alim | Done | [24 automated tests](ai-engine/test_synthetic_data.py) pass, including 50 seeds for both capacity scenarios and generated-record validation. Reproducible 25-order fixtures: [plentiful](samples/plentiful-dataset.json), [scarce](samples/scarce-dataset.json); rules and decisions: [synthetic-data contract](docs/contracts/synthetic-data.md), [decision log](docs/decisions.md). |
-| 4 | Rule-based allocation agent (baseline) | Alim | Not started | |
+| 4 | Rule-based allocation agent (baseline) | Alim | Done | All [15 allocator tests](ai-engine/test_allocator.py) and [24 Phase 3 regression tests](ai-engine/test_synthetic_data.py) pass; 50 seeds each of plentiful/scarce data satisfy assignment invariants. Live `/v1/optimize` returns schema-shaped deadline-feasible allocations, preserves field-level 400 errors, and matches the sample request's expected wagon assignments. Deterministic rules and provisional metrics are documented in the [baseline allocation contract](docs/contracts/allocation-baseline.md); choices are in the [decision log](docs/decisions.md). |
 | 5 | Objective scoring, weighting, and ranking | Alim | Not started | |
 | 6 | Optimization agent (constraint-based search) | Alim | Not started | |
 | 7 | Machine-learning prediction component | Alim | Not started | |

@@ -1,21 +1,18 @@
-import json
-import os
-from pathlib import Path
-
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from allocator import build_allocation_plan
 from models import OptimizeRequest
 
-
 app = FastAPI(title="ChainRoute AI/ML Allocation Engine", version="1.0.0")
-PLAN_PATH = Path(os.environ.get("ALLOCATION_PLAN_PATH", "/app/allocation-plan.json"))
+app = FastAPI(title="ChainRoute AI/ML Allocation Engine", version="1.0.0")
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(
-    request: Request, exc: RequestValidationError
+    _request: Request, exc: RequestValidationError
 ) -> JSONResponse:
+    del _request
     fields = {
         ".".join(str(part) for part in error["loc"][1:]): error["msg"]
         for error in exc.errors()
@@ -39,7 +36,4 @@ def health() -> dict[str, str]:
 
 @app.post("/v1/optimize")
 def optimize(request: OptimizeRequest) -> dict:
-    # Keep the Phase 2 fixture response until the Phase 4 allocator replaces it.
-    del request
-    with PLAN_PATH.open(encoding="utf-8") as plan_file:
-        return json.load(plan_file)
+    return build_allocation_plan(request)
