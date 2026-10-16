@@ -7,8 +7,11 @@ services:
       dockerfile: ai-engine/Dockerfile
     environment:
       ALLOCATION_PLAN_PATH: /app/allocation-plan.json
+      AI_RUN_LOG_PATH: /data/optimization-runs.sqlite3
     ports:
       - "${AI_ENGINE_PORT:-8000}:8000"
+    volumes:
+      - ai-run-logs:/data
     healthcheck:
       test:
         - CMD
@@ -128,5 +131,6 @@ services:
       start_period: 10s
 
 volumes:
+  ai-run-logs:
   postgres-data:
   contract-artifacts:

@@ -4,7 +4,7 @@
 **Base URL (local):** `http://ai-engine:8000` from the Compose network  
 **Machine-readable schema:** [`ai-engine.schema.json`](./ai-engine.schema.json)
 
-Track 1 is stateless per optimization request. It does not call the platform, database, or blockchain.
+Track 1 does not call the platform, PostgreSQL, or blockchain. It stores its own optimization trace in a local SQLite database; Docker Compose persists it in the `ai-run-logs` volume.
 
 ## `GET /health`
 
@@ -34,14 +34,20 @@ Accepts JSON matching the `optimizeRequest` definition in `ai-engine.schema.json
 
 ### Errors
 
-Invalid request: HTTP `400`, shared error body, `code: "VALIDATION_ERROR"`, and `fields` keyed by invalid field path. Unexpected engine failure: HTTP `500` with the shared error body and no internal stack trace.
+Invalid request: HTTP `400`, shared error body, `code: "VALIDATION_ERROR"`, and `fields` keyed by invalid field path. Unexpected engine failure: HTTP `500` with `code: "OPTIMIZATION_FAILED"` and no internal stack trace; diagnostic details remain in the run record and service log.
+
+## `GET /v1/runs/{runId}`
+
+Returns the immutable success or failure trace for a previous optimize call. The trace includes the complete validated input snapshot, its stable SHA-256 hash, run and plan IDs, timestamps and duration, algorithm/search parameters, prediction method and model version, input counts, and any failure stage/type/message. Unknown IDs return HTTP `404` with `code: "NOT_FOUND"`.
+
+Every optimize call is logged once, including failed runs and weight-change what-if requests. SQLite enforces run-ID uniqueness and uses WAL mode for concurrent readers and writers. The local database path defaults to `ai-engine/optimization-runs.sqlite3` and can be changed with `AI_RUN_LOG_PATH`; Compose points it at `/data/optimization-runs.sqlite3` on its dedicated named volume.
 
 ## Determinism and boundary rules
 
 - Empty lists are valid inputs. The response is a valid empty plan when there are no assignable orders.
 - A well-formed order with no usable route or wagon remains in the request and must appear in `unassignedOrders`; it is not a request-validation error.
 - The engine rejects invalid numeric values, priorities outside 1–3, missing required fields, malformed timestamps, and unknown fields.
-- `inputHash` is `sha256:` followed by 64 lowercase hexadecimal characters. It is computed from the request serialized using RFC 8785 JSON Canonicalization Scheme (JCS), UTF-8 encoded; the same request produces the same hash.
+- `inputHash` is `sha256:` followed by 64 lowercase hexadecimal characters. It is computed from the validated request serialized as compact UTF-8 JSON with object keys sorted; identical requests produce identical hashes, while changing any request field (including weights) changes the hash.
 - The response example in `samples/allocation-plan.json` illustrates shape only; production scores and estimates are computed from the actual input/model.
 
 ## Scoring and prediction

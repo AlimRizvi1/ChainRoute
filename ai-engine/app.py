@@ -1,11 +1,15 @@
+import json
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from allocator import build_allocation_plan
-from models import OptimizeRequest
+from models import OptimizationRunRecord, OptimizeRequest
+from run_log import get_run_record
 
 app = FastAPI(title="ChainRoute AI/ML Allocation Engine", version="1.0.0")
-app = FastAPI(title="ChainRoute AI/ML Allocation Engine", version="1.0.0")
+logger = logging.getLogger(__name__)
 
 
 @app.exception_handler(RequestValidationError)
@@ -29,9 +33,40 @@ async def validation_error_handler(
     )
 
 
+@app.exception_handler(Exception)
+async def internal_error_handler(_request: Request, exc: Exception) -> JSONResponse:
+    del _request
+    logger.exception("AI engine request failed", exc_info=exc)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": "OPTIMIZATION_FAILED",
+                "message": "The optimization run failed.",
+            }
+        },
+    )
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/v1/runs/{run_id}", response_model=OptimizationRunRecord)
+def get_optimization_run(run_id: str) -> OptimizationRunRecord | JSONResponse:
+    record = get_run_record(run_id)
+    if record is None:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": {
+                    "code": "NOT_FOUND",
+                    "message": "Optimization run was not found.",
+                }
+            },
+        )
+    return OptimizationRunRecord.model_validate_json(json.dumps(record))
 
 
 @app.post("/v1/optimize")

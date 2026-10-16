@@ -47,7 +47,7 @@ Regenerate the deterministic 25-order `plentiful` and `scarce` datasets with `py
 python -m unittest discover -s ai-engine -p "test_*.py"
 ```
 
-To stop the services while keeping the PostgreSQL volume, use `docker compose down`. To remove the database and deployed-contract volumes and prove a clean restart, use `docker compose down -v` followed by `docker compose up --build`.
+To stop the services while keeping persistent data, use `docker compose down`. To remove the PostgreSQL, deployed-contract, and AI run-log volumes and prove a clean restart, use `docker compose down -v` followed by `docker compose up --build`.
 
 Backend dependency probes are bounded by `DEPENDENCY_TIMEOUT_MS` (5 seconds by default); the dashboard allows up to 9 seconds for a health response. If a dependency is stopped or responds too slowly, `/health` stays HTTP 200 and reports `status: degraded` plus the down service. The dashboard refreshes automatically and shows textual and color-coded service states.
 
@@ -59,6 +59,8 @@ python ai-engine/train_prediction_model.py
 ```
 
 The generated model artifact records its content-derived version and held-out metrics. The current synthetic validation MAE is 0.0098 against the 0.10 tolerance; this measures fit to the simulator, not real-world delivery performance.
+
+Each optimize call writes one success/failure trace to the AI engine's SQLite database. Compose persists the database in the `ai-run-logs` volume. Retrieve a trace by its returned run ID with `GET http://localhost:8000/v1/runs/{runId}`.
 
 ## Project layout
 
@@ -96,7 +98,7 @@ Update this table as work is completed. Set a phase to **In progress** only when
 | 5 | Objective scoring, weighting, and ranking | Alim | Done | All 52 AI-engine tests pass across [HTTP validation](ai-engine/test_api.py), [hand-built ranking cases](ai-engine/test_ranking.py), [Phase 4 allocation invariants](ai-engine/test_allocator.py), and [Phase 3 data validation](ai-engine/test_synthetic_data.py). Verified the API's field-specific 400 for a negative weight; hand-calculated 66.67% utilization and 75,000-paise cost; weight-driven what-if route changes; and distinct ranked alternatives. Scoring rules and approved cost/coverage decisions are recorded in the [AI engine contract](docs/contracts/ai-engine.md) and [decision log](docs/decisions.md); see the updated [response sample](samples/allocation-plan.json). |
 | 6 | Optimization agent (constraint-based search) | Alim | Done | All 59 AI-engine tests pass: [search/ranking](ai-engine/test_ranking.py), [HTTP validation](ai-engine/test_api.py), [allocation invariants](ai-engine/test_allocator.py), and [synthetic-data validation](ai-engine/test_synthetic_data.py). Verified the 300-order plentiful target and 1-second scarce-budget case. Deterministic single-worker CP-SAT prioritizes order classes, uses the baseline as a warm start/fallback, and returns schema-valid plans. The [saved scarce demo](samples/phase-6-scarce-demo.json) raises assignments from 1 to 2 and plan on-time probability from 0.490 to 0.958 versus the Phase 4 baseline. The budget and new `INCOMPATIBLE_WAGON_TYPE` reason are recorded in the [AI engine contract](docs/contracts/ai-engine.md). |
 | 7 | Machine-learning prediction component | Alim | Done | All 69 AI-engine tests pass. Deterministic logistic regression uses 30,000 synthetic lognormal transit outcomes and a stratified 80/20 split (seed 42); held-out probability MAE is 0.0098 (≤ 0.10 tolerance). Boundary, monotonicity, determinism, unseen-cargo and missing-model fallback, ranking integration, and 300-order prediction performance are covered; 300 predictions measured 0.0010 s. Model version is content-derived; see [prediction contract](docs/contracts/ai-engine.md), [training command](ai-engine/train_prediction_model.py), and [decision log](docs/decisions.md). |
-| 8 | Traceability, logging, and performance validation | Alim | Not started | |
+| 8 | Traceability, logging, and performance validation | Alim | Done | Every optimize success and failure gets one unique SQLite run record containing the full input snapshot/hash, timestamps/runtime, algorithm parameters, prediction/model version, input counts, plan ID, and failure diagnostics; `GET /v1/runs/{runId}` retrieves it. Concurrent run writes, duplicate-ID rejection, input/what-if traceability, and failure logging are tested. Full 300-order runs including ML, ranking, response validation, and SQLite logging: plentiful **7.056 s**, scarce **3.274 s** (seed 11); both returned complete plans. Track 1 is independently runnable without Track 2/3. The AI engine Docker image built successfully; its container passed health and optimize/retrieve checks, and its SQLite run record survived a container restart in the named volume. See the [run-log/API contract](docs/contracts/ai-engine.md) and [storage decision](docs/decisions.md). |
 
 ### Track 2 — Blockchain Settlement Layer
 

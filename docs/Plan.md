@@ -77,7 +77,7 @@ Nothing downstream (the Platform's `optimize` contract, or the dashboard's displ
 
 - The dashboard never calls Track 1 or Track 2 directly. It only calls the backend API. (SRS FR-D1/FR-D2 are enforced once, at the backend.)
 - Track 1 and Track 2 never call each other or the backend; they only respond to requests.
-- Track 1 is **stateless per call**: it receives orders/wagons/routes/weights and returns a plan. Long-term storage of orders, plans and runs lives in the Platform's database (Technical Design §3.5, §8.1).
+- Track 1 has no shared operational-database dependency: it receives orders/wagons/routes/weights and returns a plan. It owns a local SQLite diagnostic run trace (including the request snapshot); the Platform remains authoritative for operational orders, master data, and accepted plans, and may persist its own linked run metadata.
 - Track 2 is the **source of truth** for contract state. The Platform may cache it for speed, but on any disagreement the ledger wins (Technical Design §8.1).
 - Each track must remain independently deployable and independently testable (SRS Scalability NFR): Track 1 as a standalone service, Track 2 as a standalone chain + contract, Track 3 as backend + dashboard.
 
@@ -750,7 +750,9 @@ Candidate X: cheap, 60% on-time. Candidate Y: expensive, 95% on-time. Equal util
 - *(Optional)* expose a way to fetch one run record by ID.
 - Run the full pipeline (data generation → agent → ML prediction → scoring → ranking → export → log) end to end against the performance target.
 
-**Decisions to Confirm.** Where run records are stored if Track 1 is meant to be stateless (recommended: Track 1 still writes its own run log locally or to a file/table it owns, and Track 3 separately persists the plan once it receives the response — this keeps Track 1 able to run standalone, consistent with Technical Design §3.5).
+**Storage decision.** Track 1 owns a local SQLite run log so it remains independently deployable; the Platform remains responsible for operational data and accepted-plan persistence.
+
+The service accepts `AI_RUN_LOG_PATH`; Compose persists it in the dedicated `ai-run-logs` volume. `GET /v1/runs/{runId}` retrieves a record without coupling the engine to Track 3's PostgreSQL. Each record contains the validated input snapshot and hash, timestamps/runtime, selected algorithm and parameters, model/fallback identity, counts, plan ID, status, and failure diagnostics when applicable.
 
 **Expected Input / Output.** Input: any optimize call. Output: in addition to the `AllocationPlan`, exactly one new run-log record per call, retrievable by its run ID.
 
@@ -770,9 +772,9 @@ Candidate X: cheap, 60% on-time. Candidate Y: expensive, 95% on-time. Equal util
 - Very high call volume in a short period — the log must not become a bottleneck that slows down the optimize call itself.
 
 **Acceptance Criteria**
-- [ ] Every run, including what-ifs, appears in the log exactly once, fully populated.
-- [ ] The measured end-to-end time at the target scale is recorded in the README.
-- [ ] Track 1 is considered feature-complete: it can be deployed and tested entirely on its own, with no dependency on Track 2 or Track 3.
+- [x] Every run, including what-ifs and failed executions, appears in the log exactly once, fully populated.
+- [x] The measured end-to-end time at the target scale is recorded in the README.
+- [x] Track 1 is feature-complete and independently testable/deployable, with no runtime dependency on Track 2 or Track 3.
 
 ---
 
@@ -1086,7 +1088,7 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 - Link plan → run, and contract → plan → orders, so the chain of responsibility is traceable (satisfies FR-A8's traceability from the backend's side).
 - A seed step for master data (wagons, routes — reuse Track 1's Phase 3 generator output as a convenient source) and demo users for each role.
 
-**Decisions to Confirm.** The migration tool; where optimizer run records ultimately live (Track 1 writes its own log per Phase 8 — decide whether the backend also stores a copy, or treats Track 1's log as the source of truth for that data); the seed data source.
+**Decisions to Confirm.** The migration tool; whether the backend also persists a linked copy of Track 1's run metadata or relies on the Track 1 log for optimizer diagnostics; the seed data source.
 
 **Expected Input / Output.** Input: an empty database. Output: a fully migrated schema, with seed data present, reproducible from a clean state with one command.
 

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class StrictModel(BaseModel):
@@ -137,3 +137,71 @@ class AllocationPlan(StrictModel):
     unassignedOrders: list[UnassignedOrder]
     alternatives: list[Alternative]
     runMetadata: RunMetadata
+
+
+class RunParameters(StrictModel):
+    weights: Weights
+    timeBudgetSeconds: Annotated[float, Field(ge=0.05, le=10, allow_inf_nan=False)]
+    requestedTimeBudgetSeconds: Annotated[
+        float | None, Field(ge=0.05, le=10, allow_inf_nan=False)
+    ]
+    searchWorkers: int = Field(ge=1)
+    randomSeed: int
+    maxSearchCandidates: int = Field(ge=1)
+    heuristicStrategies: int = Field(ge=1)
+    dwellTimeSeconds: int = Field(ge=0)
+    costPaisePerWagonKm: int = Field(ge=0)
+    priorityObjective: str = Field(min_length=1)
+
+
+class RunPrediction(StrictModel):
+    method: Literal[
+        "logistic_regression", "heuristic_fallback", "mixed", "not_run"
+    ]
+    modelVersion: str | None
+
+
+class RunFailure(StrictModel):
+    stage: str = Field(min_length=1)
+    type: str = Field(min_length=1)
+    message: str
+
+
+class OptimizationRunRecord(StrictModel):
+    runId: str = Field(min_length=1)
+    startedAt: datetime
+    completedAt: datetime
+    durationMs: int = Field(ge=0)
+    status: Literal["succeeded", "failed"]
+    planId: str | None
+    algorithm: str = Field(min_length=1)
+    parameters: RunParameters
+    prediction: RunPrediction
+    inputCounts: InputCounts
+    inputHash: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    inputSnapshot: OptimizeRequest
+    failure: RunFailure | None
+
+    @field_validator("startedAt", "completedAt")
+    @classmethod
+    def require_utc_timestamp(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() != timezone.utc.utcoffset(value):
+            raise ValueError("run timestamps must be UTC")
+        return value
+
+    @model_validator(mode="after")
+    def validate_status_details(self) -> "OptimizationRunRecord":
+        if self.status == "succeeded":
+            if self.planId is None or self.failure is not None:
+                raise ValueError("successful runs require a plan and no failure")
+            if self.prediction.method == "not_run":
+                raise ValueError("successful runs must report a prediction method")
+        elif self.planId is not None or self.failure is None:
+            raise ValueError("failed runs require failure details and no plan")
+
+        if self.prediction.method in ("logistic_regression", "mixed"):
+            if self.prediction.modelVersion is None:
+                raise ValueError("model predictions require a model version")
+        elif self.prediction.modelVersion is not None:
+            raise ValueError("fallback or unrun predictions cannot have a model version")
+        return self

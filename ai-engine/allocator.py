@@ -4,21 +4,26 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from models import AllocationPlan, Assignment, OptimizeRequest, Route, Wagon
 from prediction import apply_candidate_predictions
 from ranking import (
     MAX_ALTERNATIVES,
+    COST_PAISE_PER_WAGON_KM,
     CandidatePlan,
     calculate_metrics,
     maximum_possible_cost_paise,
     rank_candidates,
 )
+from run_log import write_run_record
 from search_agent import DEFAULT_TIME_BUDGET_SECONDS, build_search_candidates
+from search_agent import MAX_SEARCH_CANDIDATES
 from synthetic_data import CARGO_TO_WAGON, SYNTHETIC_START
 
 ALGORITHM = "ortools-cp-sat-v1"
 DWELL_TIME = timedelta(0)
+STRATEGY_COUNT = 4
 
 
 @dataclass(frozen=True)
@@ -38,19 +43,146 @@ STRATEGIES = (
 
 def build_allocation_plan(request: OptimizeRequest) -> dict:
     started_at = time.perf_counter()
+    started_timestamp = datetime.now(timezone.utc)
+    run_id = uuid.uuid4().hex
+    input_snapshot = request.model_dump(mode="json")
+    request_json = json.dumps(input_snapshot, sort_keys=True, separators=(",", ":"))
+    input_hash = f"sha256:{hashlib.sha256(request_json.encode('utf-8')).hexdigest()}"
+    time_budget = (
+        request.timeBudgetSeconds
+        if request.timeBudgetSeconds is not None
+        else DEFAULT_TIME_BUDGET_SECONDS
+    )
+    run_state = {
+        "stage": "baseline",
+        "predictionMethod": "not_run",
+        "modelVersion": None,
+    }
+    try:
+        result = _build_allocation_plan(
+            request=request,
+            run_id=run_id,
+            started_at=started_at,
+            input_hash=input_hash,
+            run_state=run_state,
+        )
+    except Exception as error:
+        completed_timestamp = datetime.now(timezone.utc)
+        write_run_record(
+            _create_run_record(
+                run_id=run_id,
+                started_at=started_timestamp,
+                completed_at=completed_timestamp,
+                duration_ms=int((time.perf_counter() - started_at) * 1000),
+                request=request,
+                input_snapshot=input_snapshot,
+                input_hash=input_hash,
+                time_budget=time_budget,
+                plan_id=None,
+                prediction_method=run_state["predictionMethod"],
+                model_version=run_state["modelVersion"],
+                status="failed",
+                failure={
+                    "stage": run_state["stage"],
+                    "type": type(error).__name__,
+                    "message": str(error),
+                },
+            )
+        )
+        raise
+
+    completed_timestamp = datetime.now(timezone.utc)
+    write_run_record(
+        _create_run_record(
+            run_id=run_id,
+            started_at=started_timestamp,
+            completed_at=completed_timestamp,
+            duration_ms=int((time.perf_counter() - started_at) * 1000),
+            request=request,
+            input_snapshot=input_snapshot,
+            input_hash=input_hash,
+            time_budget=time_budget,
+            plan_id=result["planId"],
+            prediction_method=result["runMetadata"]["prediction"]["method"],
+            model_version=result["runMetadata"]["prediction"]["modelVersion"],
+            status="succeeded",
+            failure=None,
+        )
+    )
+    return result
+
+
+def _create_run_record(
+    *,
+    run_id: str,
+    started_at: datetime,
+    completed_at: datetime,
+    duration_ms: int,
+    request: OptimizeRequest,
+    input_snapshot: dict[str, Any],
+    input_hash: str,
+    time_budget: float,
+    plan_id: str | None,
+    prediction_method: str,
+    model_version: str | None,
+    status: str,
+    failure: dict[str, str] | None,
+) -> dict[str, Any]:
+    return {
+        "runId": run_id,
+        "startedAt": started_at.isoformat(),
+        "completedAt": completed_at.isoformat(),
+        "durationMs": duration_ms,
+        "status": status,
+        "planId": plan_id,
+        "algorithm": ALGORITHM,
+        "parameters": {
+            "weights": request.weights.model_dump(),
+            "timeBudgetSeconds": time_budget,
+            "requestedTimeBudgetSeconds": request.timeBudgetSeconds,
+            "searchWorkers": 1,
+            "randomSeed": 0,
+            "maxSearchCandidates": MAX_SEARCH_CANDIDATES,
+            "heuristicStrategies": STRATEGY_COUNT,
+            "dwellTimeSeconds": int(DWELL_TIME.total_seconds()),
+            "costPaisePerWagonKm": COST_PAISE_PER_WAGON_KM,
+            "priorityObjective": "lexicographic_priority_counts_then_weighted_ranking",
+        },
+        "prediction": {
+            "method": prediction_method,
+            "modelVersion": model_version,
+        },
+        "inputCounts": {
+            "orders": len(request.orders),
+            "wagons": len(request.wagons),
+            "routes": len(request.routes),
+        },
+        "inputHash": input_hash,
+        "inputSnapshot": input_snapshot,
+        "failure": failure,
+    }
+
+
+def _build_allocation_plan(
+    *,
+    request: OptimizeRequest,
+    run_id: str,
+    started_at: float,
+    input_hash: str,
+    run_state: dict[str, Any],
+) -> dict:
     heuristic_candidates = [
         _build_candidate(request, strategy) for strategy in STRATEGIES
     ]
+    run_state["stage"] = "search"
     candidates = [
         *heuristic_candidates,
         *build_search_candidates(
             request,
             heuristic_candidates[0],
-            (
-                request.timeBudgetSeconds
-                if request.timeBudgetSeconds is not None
-                else DEFAULT_TIME_BUDGET_SECONDS
-            ),
+            request.timeBudgetSeconds
+            if request.timeBudgetSeconds is not None
+            else DEFAULT_TIME_BUDGET_SECONDS,
         ),
     ]
     priority_by_order = {order.orderId: order.priority for order in request.orders}
@@ -62,9 +194,13 @@ def build_allocation_plan(request: OptimizeRequest) -> dict:
         for candidate in candidates
         if _priority_profile(candidate, priority_by_order) == best_priority_profile
     ]
+    run_state["stage"] = "prediction"
     prediction_method, model_version = apply_candidate_predictions(
         candidates, request.orders, request.routes
     )
+    run_state["predictionMethod"] = prediction_method
+    run_state["modelVersion"] = model_version
+    run_state["stage"] = "scoring_and_ranking"
     ranked = rank_candidates(
         candidates,
         request.weights,
@@ -72,12 +208,6 @@ def build_allocation_plan(request: OptimizeRequest) -> dict:
         maximum_possible_cost_paise(request.wagons, request.routes),
     )
     winner = ranked[0]
-    run_id = uuid.uuid4().hex
-    request_json = json.dumps(
-        request.model_dump(mode="json"),
-        sort_keys=True,
-        separators=(",", ":"),
-    )
     generated_at = datetime.now(timezone.utc)
     alternatives = [
         {
@@ -101,7 +231,7 @@ def build_allocation_plan(request: OptimizeRequest) -> dict:
             "durationMs": int((time.perf_counter() - started_at) * 1000),
             "algorithm": ALGORITHM,
             "weights": request.weights.model_dump(),
-            "inputHash": f"sha256:{hashlib.sha256(request_json.encode()).hexdigest()}",
+            "inputHash": input_hash,
             "inputCounts": {
                 "orders": len(request.orders),
                 "wagons": len(request.wagons),
@@ -113,6 +243,7 @@ def build_allocation_plan(request: OptimizeRequest) -> dict:
             },
         },
     }
+    run_state["stage"] = "response_validation"
     return AllocationPlan.model_validate(result).model_dump(mode="json")
 
 

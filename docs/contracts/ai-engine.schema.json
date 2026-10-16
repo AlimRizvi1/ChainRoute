@@ -5,7 +5,8 @@
   "description": "Track 1 request and response schemas. Transport endpoints are documented in platform.openapi.yaml.",
   "oneOf": [
     { "$ref": "#/$defs/optimizeRequest" },
-    { "$ref": "#/$defs/allocationPlan" }
+    { "$ref": "#/$defs/allocationPlan" },
+    { "$ref": "#/$defs/runRecord" }
   ],
   "$defs": {
     "order": {
@@ -172,6 +173,73 @@
         "unassignedOrders": { "type": "array", "items": { "$ref": "#/$defs/unassignedOrder" } },
         "alternatives": { "type": "array", "items": { "$ref": "#/$defs/alternative" } },
         "runMetadata": { "$ref": "#/$defs/runMetadata" }
+      }
+    },
+    "runRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "startedAt", "completedAt", "durationMs", "status", "planId", "algorithm", "parameters", "prediction", "inputCounts", "inputHash", "inputSnapshot", "failure"],
+      "properties": {
+        "runId": { "type": "string", "minLength": 1 },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "status": { "type": "string", "enum": ["succeeded", "failed"] },
+        "planId": { "type": ["string", "null"] },
+        "algorithm": { "type": "string", "minLength": 1 },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["weights", "timeBudgetSeconds", "requestedTimeBudgetSeconds", "searchWorkers", "randomSeed", "maxSearchCandidates", "heuristicStrategies", "dwellTimeSeconds", "costPaisePerWagonKm", "priorityObjective"],
+          "properties": {
+            "weights": { "$ref": "#/$defs/weights" },
+            "timeBudgetSeconds": { "type": "number", "minimum": 0.05, "maximum": 10 },
+            "requestedTimeBudgetSeconds": { "type": ["number", "null"], "minimum": 0.05, "maximum": 10 },
+            "searchWorkers": { "type": "integer", "minimum": 1 },
+            "randomSeed": { "type": "integer" },
+            "maxSearchCandidates": { "type": "integer", "minimum": 1 },
+            "heuristicStrategies": { "type": "integer", "minimum": 1 },
+            "dwellTimeSeconds": { "type": "integer", "minimum": 0 },
+            "costPaisePerWagonKm": { "type": "integer", "minimum": 0 },
+            "priorityObjective": { "type": "string", "minLength": 1 }
+          }
+        },
+        "prediction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "modelVersion"],
+          "properties": {
+            "method": { "type": "string", "enum": ["logistic_regression", "heuristic_fallback", "mixed", "not_run"] },
+            "modelVersion": { "type": ["string", "null"] }
+          }
+        },
+        "inputCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["orders", "wagons", "routes"],
+          "properties": {
+            "orders": { "type": "integer", "minimum": 0 },
+            "wagons": { "type": "integer", "minimum": 0 },
+            "routes": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "inputHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "inputSnapshot": { "$ref": "#/$defs/optimizeRequest" },
+        "failure": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["stage", "type", "message"],
+              "properties": {
+                "stage": { "type": "string", "minLength": 1 },
+                "type": { "type": "string", "minLength": 1 },
+                "message": { "type": "string" }
+              }
+            }
+          ]
+        }
       }
     }
   }
