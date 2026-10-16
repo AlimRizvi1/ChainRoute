@@ -11,7 +11,7 @@ class StrictModel(BaseModel):
 class Order(StrictModel):
     orderId: str = Field(min_length=1)
     cargoType: str = Field(min_length=1)
-    quantityTonnes: Annotated[float, Field(gt=0)]
+    quantityTonnes: Annotated[float, Field(gt=0, allow_inf_nan=False)]
     destination: str = Field(min_length=1)
     priority: int = Field(ge=1, le=3)
     deadline: datetime
@@ -32,7 +32,7 @@ class Order(StrictModel):
 
 class Wagon(StrictModel):
     wagonId: str = Field(min_length=1)
-    capacityTonnes: Annotated[float, Field(gt=0)]
+    capacityTonnes: Annotated[float, Field(gt=0, allow_inf_nan=False)]
     wagonType: str = Field(min_length=1)
     location: str = Field(min_length=1)
     available: bool
@@ -42,14 +42,14 @@ class Route(StrictModel):
     routeId: str = Field(min_length=1)
     origin: str = Field(min_length=1)
     destination: str = Field(min_length=1)
-    distanceKm: Annotated[float, Field(gt=0)]
+    distanceKm: Annotated[float, Field(gt=0, allow_inf_nan=False)]
     transitTimeSeconds: int = Field(gt=0)
 
 
 class Weights(StrictModel):
-    onTime: Annotated[float, Field(ge=0, le=1)]
-    cost: Annotated[float, Field(ge=0, le=1)]
-    utilization: Annotated[float, Field(ge=0, le=1)]
+    onTime: Annotated[float, Field(ge=0, allow_inf_nan=False)]
+    cost: Annotated[float, Field(ge=0, allow_inf_nan=False)]
+    utilization: Annotated[float, Field(ge=0, allow_inf_nan=False)]
 
 
 class OptimizeRequest(StrictModel):
@@ -70,11 +70,11 @@ class Assignment(StrictModel):
     cargoType: str = Field(min_length=1)
     wagonIds: list[str] = Field(min_length=1)
     route: RouteAssignment
-    quantityTonnes: Annotated[float, Field(gt=0)]
+    quantityTonnes: Annotated[float, Field(gt=0, allow_inf_nan=False)]
     departAt: datetime
     eta: datetime
     onTimeProbability: Annotated[float, Field(ge=0, le=1)]
-    score: float
+    score: Annotated[float, Field(allow_inf_nan=False)]
 
 
 class Metrics(StrictModel):
@@ -98,7 +98,7 @@ class UnassignedOrder(StrictModel):
 
 class Alternative(StrictModel):
     rank: int = Field(ge=1)
-    score: float
+    score: Annotated[float, Field(ge=0, allow_inf_nan=False)]
     assignments: list[Assignment]
     metrics: Metrics
 
@@ -127,6 +127,7 @@ class RunMetadata(StrictModel):
 class AllocationPlan(StrictModel):
     planId: str = Field(min_length=1)
     runId: str = Field(min_length=1)
+    score: Annotated[float, Field(ge=0, allow_inf_nan=False)]
     assignments: list[Assignment]
     metrics: Metrics
     unassignedOrders: list[UnassignedOrder]

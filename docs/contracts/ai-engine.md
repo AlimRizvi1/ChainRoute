@@ -19,15 +19,16 @@ Accepts JSON matching the `optimizeRequest` definition in `ai-engine.schema.json
 - `orders`: zero or more orders; quantity is in tonnes, priority is `1` (highest) through `3` (lowest), and `deadline` is an ISO-8601 UTC timestamp.
 - `wagons`: zero or more wagons; `available` is explicit and capacity is in tonnes.
 - `routes`: zero or more directed origin/destination routes; distance is in kilometres and transit time in seconds.
-- `weights`: each of `onTime`, `cost`, and `utilization` is between `0` and `1`, inclusive. The engine normalizes them internally; callers need not pre-normalize.
+- `weights`: each of `onTime`, `cost`, and `utilization` is any finite nonnegative number. The engine normalizes them internally, so callers need not pre-normalize; all-zero weights are treated as equal thirds.
 
 ### Response
 
 - `planId`, `runId`: opaque non-empty strings.
+- `score`: nonnegative combined score. Coverage is the primary objective; normalized weighted metrics break ties while ensuring a lower-coverage plan cannot win solely by being cheaper.
 - `assignments`: each order appears at most once; assignments include cargo type, wagon IDs, selected route, quantity, departure, ETA, per-assignment on-time probability and score.
 - `metrics`: utilization is a percentage from 0 to 100; estimated cost is a decimal string of integer paise (never a floating-point JSON number); distance is km; on-time probability is from 0 to 1.
 - `unassignedOrders`: includes a stable reason code and user-readable message. Allowed reason codes are `NO_COMPATIBLE_WAGON`, `NO_ROUTE`, `INSUFFICIENT_CAPACITY`, `NO_FEASIBLE_ASSIGNMENT`, and `TIME_BUDGET_EXCEEDED`.
-- `alternatives`: ranked candidate allocations. An empty list is valid when the search found no runner-up.
+- `alternatives`: up to three distinct runner-up allocations, ordered by descending score with deterministic tie-breaking. An empty list is valid when the search found no runner-up.
 - `runMetadata`: records the input hash, chosen algorithm, weights, input counts, runtime, and whether logistic regression or the labelled heuristic fallback provided predictions.
 
 ### Errors
@@ -41,3 +42,11 @@ Invalid request: HTTP `400`, shared error body, `code: "VALIDATION_ERROR"`, and 
 - The engine rejects invalid numeric values, priorities outside 1–3, missing required fields, malformed timestamps, and unknown fields.
 - `inputHash` is `sha256:` followed by 64 lowercase hexadecimal characters. It is computed from the request serialized using RFC 8785 JSON Canonicalization Scheme (JCS), UTF-8 encoded; the same request produces the same hash.
 - The response example in `samples/allocation-plan.json` illustrates shape only; production scores and estimates are computed from the actual input/model.
+
+## Phase 5 scoring
+
+- Candidate plans are produced by four deterministic greedy strategies (priority/deadline order, deadline/priority order, smaller-wagon-first, and fastest-route-first), then duplicate allocations are removed.
+- Utilization is assigned tonnes divided by the capacity of selected wagons, as a percentage. Distance sums the selected route distance once per order. Cost is `250` paise per wagon-kilometre, rounded to the nearest paise after summation. On-time probability is a deadline-slack heuristic: for each feasible assignment, `0.5 + 0.5 × slack / (slack + transit time)`; the plan metric is the probability sum divided by all requested orders, so unassigned orders contribute zero.
+- Each metric is scaled to `[0, 1]`: on-time is already a probability, utilization is divided by 100, and cost efficiency is `clamp(1 - cost / maximum_possible_cost, 0, 1)`. The maximum possible cost uses the longest supplied route and all available wagons. If it is zero, cost efficiency is zero.
+- Let `N` be the number of orders, `C` the fraction assigned, and `M` the normalized weighted mean of the three scaled metrics. Score is `C + M / (N + 1)` (with `C = 0` for no orders). The bounded metric contribution makes coverage take precedence; weights are normalized by their sum, with all-zero weights treated as equal thirds.
+- This first on-time estimate is a transparent heuristic, not a trained prediction; Phase 7 may replace it.

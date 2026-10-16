@@ -233,7 +233,7 @@ These are **proposed defaults**. Confirm or change them as a team in **Phase 1**
 
 Frozen in Phase 1, built in Phases 3–8. Minimum shape:
 
-- Request: `orders[]` (cargo type, quantity, destination, priority, deadline), `wagons[]` (capacity, type, location, availability), `routes[]` (origin, destination, distance, transit time), `weights` (on-time, cost, utilization — each 0–1, normalized by the engine).
+- Request: `orders[]` (cargo type, quantity, destination, priority, deadline), `wagons[]` (capacity, type, location, availability), `routes[]` (origin, destination, distance, transit time), `weights` (on-time, cost, utilization — finite nonnegative values, normalized by the engine).
 - Response: `planId`, `runId`, `assignments[]` (order → wagons → route → depart/ETA), `metrics` (utilization %, cost, distance, on-time probability), `unassignedOrders[]` with reason codes, `alternatives[]` (ranked runners-up).
 
 ### 8.2 The contract lifecycle interface (Track 2 → Track 3)
@@ -602,7 +602,7 @@ Owner: the member responsible for optimization and machine learning. Requirement
 - A way to generate more than one candidate from the same input (for example, by varying the order-processing sequence from Phase 4), so there is something to rank.
 - Ensure a plan cannot win purely by being cheap while dropping orders — the share of orders successfully placed must factor into the score.
 
-**Decisions to Confirm.** The cost model (a per-wagon-per-kilometre rate is a reasonable starting point); how each metric is scaled to a comparable range before weighting; the default and maximum number of alternatives returned.
+**Decisions.** Confirmed by Alim: 250 paise per wagon-kilometre; on-time probability, utilization/100, and inverse normalized cost scaled to `[0, 1]`; all-zero weights mean equal thirds; coverage takes precedence over weighted metrics; four deterministic candidates with at most three alternatives. The exact formula and the deadline-slack heuristic are recorded in [the AI engine contract](contracts/ai-engine.md) and [decision log](decisions.md).
 
 **Expected Input / Output.** Input: several candidate plans (internal representation) plus a weights object. Output: the same plans, each annotated with its metrics and its combined score, sorted best-first; the `AllocationPlan` response now includes populated `metrics` and `alternatives`.
 
@@ -633,9 +633,9 @@ Candidate X: cheap, 60% on-time. Candidate Y: expensive, 95% on-time. Equal util
 - A weights object with only one non-zero weight — normalization must not divide by zero or distort the result.
 
 **Acceptance Criteria**
-- [ ] All ranker tests pass against the hand-built candidates.
-- [ ] Metrics on a small, manually checkable plan match a hand calculation exactly.
-- [ ] Weights are validated at the HTTP boundary, not just internally.
+- [x] All ranker tests pass against the hand-built candidates.
+- [x] Metrics on a small, manually checkable plan match a hand calculation exactly.
+- [x] Weights are validated at the HTTP boundary, not just internally.
 
 ---
 

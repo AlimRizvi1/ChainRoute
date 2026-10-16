@@ -2,36 +2,133 @@ import hashlib
 import json
 import time
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from models import AllocationPlan, Assignment, OptimizeRequest, Route, Wagon
+from ranking import (
+    MAX_ALTERNATIVES,
+    CandidatePlan,
+    calculate_metrics,
+    maximum_possible_cost_paise,
+    rank_candidates,
+)
 from synthetic_data import CARGO_TO_WAGON, SYNTHETIC_START
 
-ALGORITHM = "rule-based-baseline-v1"
+ALGORITHM = "rule-based-ranked-v1"
 DWELL_TIME = timedelta(0)
+
+
+@dataclass(frozen=True)
+class AllocationStrategy:
+    process_by_deadline: bool = False
+    prefer_smaller_wagons: bool = False
+    prefer_faster_routes: bool = False
+
+
+STRATEGIES = (
+    AllocationStrategy(),
+    AllocationStrategy(process_by_deadline=True),
+    AllocationStrategy(prefer_smaller_wagons=True),
+    AllocationStrategy(prefer_faster_routes=True),
+)
 
 
 def build_allocation_plan(request: OptimizeRequest) -> dict:
     started_at = time.perf_counter()
+    candidates = [_build_candidate(request, strategy) for strategy in STRATEGIES]
+    ranked = rank_candidates(
+        candidates,
+        request.weights,
+        len(request.orders),
+        maximum_possible_cost_paise(request.wagons, request.routes),
+    )
+    winner = ranked[0]
     run_id = uuid.uuid4().hex
+    request_json = json.dumps(
+        request.model_dump(mode="json"),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    generated_at = datetime.now(timezone.utc)
+    alternatives = [
+        {
+            "rank": rank,
+            "score": candidate.score,
+            "assignments": candidate.assignments,
+            "metrics": candidate.metrics,
+        }
+        for rank, candidate in enumerate(ranked[1 : MAX_ALTERNATIVES + 1], start=1)
+    ]
+    result = {
+        "planId": f"plan-{run_id}",
+        "runId": run_id,
+        "score": winner.score,
+        "assignments": winner.assignments,
+        "metrics": winner.metrics,
+        "unassignedOrders": winner.unassigned_orders,
+        "alternatives": alternatives,
+        "runMetadata": {
+            "generatedAt": generated_at,
+            "durationMs": int((time.perf_counter() - started_at) * 1000),
+            "algorithm": ALGORITHM,
+            "weights": request.weights.model_dump(),
+            "inputHash": f"sha256:{hashlib.sha256(request_json.encode()).hexdigest()}",
+            "inputCounts": {
+                "orders": len(request.orders),
+                "wagons": len(request.wagons),
+                "routes": len(request.routes),
+            },
+            "prediction": {
+                "method": "heuristic_fallback",
+                "modelVersion": None,
+            },
+        },
+    }
+    return AllocationPlan.model_validate(result).model_dump(mode="json")
+
+
+def _build_candidate(
+    request: OptimizeRequest, strategy: AllocationStrategy
+) -> CandidatePlan:
     used_wagon_ids: set[str] = set()
     assignments: list[Assignment] = []
     unassigned_orders: list[dict[str, str]] = []
 
-    orders = sorted(
-        request.orders,
-        key=lambda order: (order.priority, order.deadline, order.orderId),
-    )
+    if strategy.process_by_deadline:
+        orders = sorted(
+            request.orders,
+            key=lambda order: (order.deadline, order.priority, order.orderId),
+        )
+    else:
+        orders = sorted(
+            request.orders,
+            key=lambda order: (order.priority, order.deadline, order.orderId),
+        )
 
     for order in orders:
-        matching_routes = sorted(
-            (
-                route
-                for route in request.routes
-                if route.destination == order.destination
-            ),
-            key=lambda route: (route.distanceKm, route.routeId),
-        )
+        if strategy.prefer_faster_routes:
+            matching_routes = sorted(
+                (
+                    route
+                    for route in request.routes
+                    if route.destination == order.destination
+                ),
+                key=lambda route: (
+                    route.transitTimeSeconds,
+                    route.distanceKm,
+                    route.routeId,
+                ),
+            )
+        else:
+            matching_routes = sorted(
+                (
+                    route
+                    for route in request.routes
+                    if route.destination == order.destination
+                ),
+                key=lambda route: (route.distanceKm, route.routeId),
+            )
         if not matching_routes:
             unassigned_orders.append(
                 _unassigned(order.orderId, "NO_ROUTE", "No route serves this destination.")
@@ -69,7 +166,14 @@ def build_allocation_plan(request: OptimizeRequest) -> dict:
                     and wagon.location == route.origin
                     and wagon.wagonType == expected_wagon_type
                 ),
-                key=lambda wagon: (-wagon.capacityTonnes, wagon.wagonId),
+                key=lambda wagon: (
+                    (
+                        wagon.capacityTonnes
+                        if strategy.prefer_smaller_wagons
+                        else -wagon.capacityTonnes
+                    ),
+                    wagon.wagonId,
+                ),
             )
             selected_wagons, capacity = _select_wagons(
                 available_wagons, order.quantityTonnes
@@ -120,6 +224,10 @@ def build_allocation_plan(request: OptimizeRequest) -> dict:
         route, selected_wagons, _ = chosen
         depart_at = SYNTHETIC_START + DWELL_TIME
         eta = depart_at + timedelta(seconds=route.transitTimeSeconds)
+        slack_seconds = max(0.0, (order.deadline - eta).total_seconds())
+        on_time_probability = 0.5 + 0.5 * slack_seconds / (
+            slack_seconds + route.transitTimeSeconds
+        )
         assignments.append(
             Assignment(
                 orderId=order.orderId,
@@ -133,69 +241,37 @@ def build_allocation_plan(request: OptimizeRequest) -> dict:
                 quantityTonnes=order.quantityTonnes,
                 departAt=depart_at,
                 eta=eta,
-                onTimeProbability=1.0,
-                score=1.0,
+                onTimeProbability=on_time_probability,
+                score=on_time_probability,
             )
         )
         used_wagon_ids.update(wagon.wagonId for wagon in selected_wagons)
 
-    wagon_by_id = {wagon.wagonId: wagon for wagon in request.wagons}
-    assigned_capacity = sum(
-        wagon_by_id[wagon_id].capacityTonnes
-        for assignment in assignments
-        for wagon_id in assignment.wagonIds
-    )
-    assigned_quantity = sum(
-        assignment.quantityTonnes for assignment in assignments
-    )
-    utilization = (
-        100 * assigned_quantity / assigned_capacity if assigned_capacity else 0.0
-    )
-    distance = sum(
-        next(
-            route.distanceKm
-            for route in request.routes
-            if route.routeId == assignment.route.routeId
-        )
-        for assignment in assignments
-    )
-    on_time_probability = len(assignments) / len(request.orders) if request.orders else 0.0
-    request_json = json.dumps(
-        request.model_dump(mode="json"),
-        sort_keys=True,
+    serialized_assignments = [
+        assignment.model_dump() for assignment in assignments
+    ]
+    signature = json.dumps(
+        sorted(
+            (
+                assignment.orderId,
+                tuple(sorted(assignment.wagonIds)),
+                assignment.route.routeId,
+            )
+            for assignment in assignments
+        ),
         separators=(",", ":"),
     )
-    generated_at = datetime.now(timezone.utc)
-    result = {
-        "planId": f"plan-{run_id}",
-        "runId": run_id,
-        "assignments": [assignment.model_dump() for assignment in assignments],
-        "metrics": {
-            "utilizationPercent": utilization,
-            "estimatedCostPaise": "0",
-            "distanceKm": distance,
-            "onTimeProbability": on_time_probability,
-        },
-        "unassignedOrders": unassigned_orders,
-        "alternatives": [],
-        "runMetadata": {
-            "generatedAt": generated_at,
-            "durationMs": int((time.perf_counter() - started_at) * 1000),
-            "algorithm": ALGORITHM,
-            "weights": request.weights.model_dump(),
-            "inputHash": f"sha256:{hashlib.sha256(request_json.encode()).hexdigest()}",
-            "inputCounts": {
-                "orders": len(request.orders),
-                "wagons": len(request.wagons),
-                "routes": len(request.routes),
-            },
-            "prediction": {
-                "method": "heuristic_fallback",
-                "modelVersion": None,
-            },
-        },
-    }
-    return AllocationPlan.model_validate(result).model_dump(mode="json")
+    return CandidatePlan(
+        assignments=serialized_assignments,
+        unassigned_orders=unassigned_orders,
+        metrics=calculate_metrics(
+            assignments,
+            len(request.orders),
+            request.wagons,
+            request.routes,
+        ),
+        signature=signature,
+    )
 
 
 def _select_wagons(

@@ -50,9 +50,9 @@
       "additionalProperties": false,
       "required": ["onTime", "cost", "utilization"],
       "properties": {
-        "onTime": { "type": "number", "minimum": 0, "maximum": 1 },
-        "cost": { "type": "number", "minimum": 0, "maximum": 1 },
-        "utilization": { "type": "number", "minimum": 0, "maximum": 1 }
+        "onTime": { "type": "number", "minimum": 0 },
+        "cost": { "type": "number", "minimum": 0 },
+        "utilization": { "type": "number", "minimum": 0 }
       }
     },
     "optimizeRequest": {
@@ -89,7 +89,7 @@
         "departAt": { "type": "string", "format": "date-time" },
         "eta": { "type": "string", "format": "date-time" },
         "onTimeProbability": { "type": "number", "minimum": 0, "maximum": 1 },
-        "score": { "type": "number" }
+        "score": { "type": "number", "minimum": 0 }
       }
     },
     "metrics": {
@@ -161,10 +161,11 @@
     "allocationPlan": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["planId", "runId", "assignments", "metrics", "unassignedOrders", "alternatives", "runMetadata"],
+      "required": ["planId", "runId", "score", "assignments", "metrics", "unassignedOrders", "alternatives", "runMetadata"],
       "properties": {
         "planId": { "type": "string", "minLength": 1 },
         "runId": { "type": "string", "minLength": 1 },
+        "score": { "type": "number", "minimum": 0 },
         "assignments": { "type": "array", "items": { "$ref": "#/$defs/assignment" } },
         "metrics": { "$ref": "#/$defs/metrics" },
         "unassignedOrders": { "type": "array", "items": { "$ref": "#/$defs/unassignedOrder" } },

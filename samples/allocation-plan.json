@@ -1,6 +1,7 @@
 {
   "planId": "plan-demo-0001",
   "runId": "run-demo-0001",
+  "score": 1.1009253246753246,
   "assignments": [
     {
       "orderId": "ORD-0001",
@@ -10,8 +11,8 @@
       "quantityTonnes": 40,
       "departAt": "2026-01-07T20:00:00Z",
       "eta": "2026-01-08T06:00:00Z",
-      "onTimeProbability": 0.94,
-      "score": 0.91
+      "onTimeProbability": 0.5,
+      "score": 0.5
     },
     {
       "orderId": "ORD-0002",
@@ -21,8 +22,8 @@
       "quantityTonnes": 40,
       "departAt": "2026-01-07T20:00:00Z",
       "eta": "2026-01-08T08:00:00Z",
-      "onTimeProbability": 0.88,
-      "score": 0.86
+      "onTimeProbability": 0.625,
+      "score": 0.625
     },
     {
       "orderId": "ORD-0003",
@@ -32,8 +33,8 @@
       "quantityTonnes": 40,
       "departAt": "2026-01-07T20:00:00Z",
       "eta": "2026-01-08T04:00:00Z",
-      "onTimeProbability": 0.97,
-      "score": 0.95
+      "onTimeProbability": 0.75,
+      "score": 0.75
     },
     {
       "orderId": "ORD-0004",
@@ -43,8 +44,8 @@
       "quantityTonnes": 40,
       "departAt": "2026-01-07T20:00:00Z",
       "eta": "2026-01-08T10:00:00Z",
-      "onTimeProbability": 0.91,
-      "score": 0.82
+      "onTimeProbability": 0.6818181818181819,
+      "score": 0.6818181818181819
     },
     {
       "orderId": "ORD-0005",
@@ -54,22 +55,22 @@
       "quantityTonnes": 40,
       "departAt": "2026-01-07T20:00:00Z",
       "eta": "2026-01-08T08:00:00Z",
-      "onTimeProbability": 0.89,
-      "score": 0.84
+      "onTimeProbability": 0.7272727272727273,
+      "score": 0.7272727272727273
     }
   ],
   "metrics": {
     "utilizationPercent": 100,
-    "estimatedCostPaise": "375000",
+    "estimatedCostPaise": "390000",
     "distanceKm": 780,
-    "onTimeProbability": 0.918
+    "onTimeProbability": 0.6568181818181819
   },
   "unassignedOrders": [],
   "alternatives": [],
   "runMetadata": {
     "generatedAt": "2026-01-07T19:59:59Z",
     "durationMs": 842,
-    "algorithm": "ortools-cp-sat",
+    "algorithm": "rule-based-ranked-v1",
     "weights": { "onTime": 0.5, "cost": 0.3, "utilization": 0.2 },
     "inputHash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "inputCounts": { "orders": 5, "wagons": 10, "routes": 4 },
