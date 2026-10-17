@@ -78,7 +78,7 @@ npm test
 npm run deploy:local
 ```
 
-The deploy command intentionally deploys a fresh placeholder contract each time and overwrites `blockchain/deployments/local.json` with its address, ABI, and chain ID. Set `CONTRACT_OUTPUT_PATH` to choose another output path; Docker Compose sets it to the shared artifact path consumed by the backend. The Phase 9 tests verify stored-value updates from a distinct account and one-hour local-chain time travel.
+The deploy command intentionally deploys a fresh contract each time and overwrites `blockchain/deployments/local.json` with its address, ABI, and chain ID. Set `CONTRACT_OUTPUT_PATH` to choose another output path; Docker Compose sets it to the shared artifact path consumed by the backend. Phase 9 verified the Hardhat deployment loop and test helpers; Phase 10 replaces the temporary probe with the agreement and booking lifecycle.
 
 ## Project layout
 
@@ -122,8 +122,8 @@ Update this table as work is completed. Set a phase to **In progress** only when
 
 | Phase | Work | Owner | Status | Evidence / notes |
 |---|---|---|---|---|
-| 9 | Smart contract workspace and deployment pipeline | Parth | Done | Pinned Solidity 0.8.28/Hardhat toolchain; compile succeeds; 2 Hardhat tests pass (second-account setter and 1-hour time travel); local deploy writes address/ABI/chain ID, and the recorded address has on-chain bytecode. Re-running deploy intentionally creates a fresh deployment and overwrites the local artifact. |
-| 10 | Agreement creation and booking | Parth | Not started | |
+| 9 | Smart contract workspace and deployment pipeline | Parth | Done | Pinned Solidity 0.8.28/Hardhat toolchain; compile, test, and local deployment verified. The temporary setter/time-travel probe was removed when Phase 10 introduced the settlement contract; deployment intentionally creates a fresh contract and overwrites the local artifact. |
+| 10 | Agreement creation and booking | Parth | Done | `ChainRouteSettlement` implements the frozen state order, operator-only creation, assigned-carrier booking, terms/hash storage, events, and on-chain chronological history. Phase 10 Hardhat tests cover creation, IDs, hash consistency, authorization, invalid terms, booking, reads, isolation, zero IDs, and same-party accounts. Validation: [blockchain contract](docs/contracts/blockchain.md), [decision 15](docs/decisions.md). |
 | 11 | Transit status tracking and event log | Parth | Not started | |
 | 12 | Delivery confirmation, SLA evaluation, penalty, and demurrage | Parth | Not started | |
 | 13 | Settlement and contract closure | Parth | Not started | |

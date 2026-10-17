@@ -67,6 +67,10 @@ Use decimal strings for unsigned integers at the JSON boundary. `termsHash` is `
 
 The interface follows the plan's accounting-only payment decision: `releasePayment` records a payout amount; the backend stores the resulting transaction hash as the payment reference. The contract does not transfer real money or tokens.
 
+## Phase 10 implementation decisions
+
+The deploying account is the immutable operator. Agreement creation rejects an empty plan ID, zero party address, zero freight value, an SLA deadline that is not in the future, a zero penalty block length, zero wagons, or a zero terms hash. A zero wagon count is invalid because an agreement without wagons cannot be booked. Shipper and carrier may be the same address. `InvalidTerms.reasonCode` values are `0` empty plan ID, `1` invalid party address, `2` zero freight value, `3` invalid SLA deadline, `4` zero penalty block length, `5` zero wagons, and `6` zero terms hash. Creation and booking each append a history entry and emit their corresponding event.
+
 ## Events
 
 Every state-changing operation emits its corresponding event. `confirmDelivery` additionally emits `PenaltyCalculated` and `DemurrageCalculated`, in that order, after `DeliveryConfirmed`. Event history is append-only; dispute resolution never edits earlier entries.
