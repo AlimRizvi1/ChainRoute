@@ -124,7 +124,7 @@ Update this table as work is completed. Set a phase to **In progress** only when
 |---|---|---|---|---|
 | 9 | Smart contract workspace and deployment pipeline | Parth | Done | Pinned Solidity 0.8.28/Hardhat toolchain; compile, test, and local deployment verified. The temporary setter/time-travel probe was removed when Phase 10 introduced the settlement contract; deployment intentionally creates a fresh contract and overwrites the local artifact. |
 | 10 | Agreement creation and booking | Parth | Done | `ChainRouteSettlement` implements the frozen state order, operator-only creation, assigned-carrier booking, terms/hash storage, events, and on-chain chronological history. Phase 10 Hardhat tests cover creation, IDs, hash consistency, authorization, invalid terms, booking, reads, isolation, zero IDs, and same-party accounts. Validation: [blockchain contract](docs/contracts/blockchain.md), [decision 15](docs/decisions.md). |
-| 11 | Transit status tracking and event log | Parth | Not started | |
+| 11 | Transit status tracking and event log | Parth | Done | 9 Phase 11 Hardhat tests pass; all 12 Phase 10 regressions still pass. Verified carrier-only status updates, frozen status values, `Booked` → `InTransit` on first update, monotonic timestamps with equal timestamps allowed, and matching events plus append-only chronological history. |
 | 12 | Delivery confirmation, SLA evaluation, penalty, and demurrage | Parth | Not started | |
 | 13 | Settlement and contract closure | Parth | Not started | |
 | 14 | Dispute resolution, audit interface, and portability | Parth | Not started | |

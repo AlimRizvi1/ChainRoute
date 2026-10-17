@@ -13,6 +13,12 @@ contract ChainRouteSettlement {
         Disputed
     }
 
+    enum ShipmentStatus {
+        Dispatched,
+        CheckpointReached,
+        ArrivedAtDestination
+    }
+
     struct Terms {
         uint256 freightValuePaise;
         uint64 slaDeadline;
@@ -52,6 +58,8 @@ contract ChainRouteSettlement {
     error UnknownContract(uint256 contractId);
     error InvalidState(uint8 currentState, uint8 requiredState);
     error InvalidTerms(uint8 reasonCode);
+    error InvalidShipmentStatus(uint8 status);
+    error InvalidTimestamp(uint64 supplied, uint64 previous);
 
     event AgreementCreated(
         uint256 indexed contractId,
@@ -65,11 +73,18 @@ contract ChainRouteSettlement {
         address indexed carrier,
         uint64 timestamp
     );
+    event ShipmentStatusUpdated(
+        uint256 indexed contractId,
+        uint8 status,
+        address indexed actor,
+        uint64 timestamp
+    );
 
     address public immutable operator;
     uint256 private nextContractId = 1;
     mapping(uint256 contractId => Agreement agreement) private agreements;
     mapping(uint256 contractId => HistoryEntry[] entries) private histories;
+    mapping(uint256 contractId => uint64 timestamp) private lastShipmentTimestamp;
 
     constructor() {
         operator = msg.sender;
@@ -123,6 +138,7 @@ contract ChainRouteSettlement {
 
         agreement.state = ContractState.Booked;
         uint64 timestamp = uint64(block.timestamp);
+        lastShipmentTimestamp[contractId] = timestamp;
         bytes32 dataHash = keccak256(
             abi.encode(contractId, msg.sender, timestamp, uint8(ContractState.Booked))
         );
@@ -135,6 +151,44 @@ contract ChainRouteSettlement {
             })
         );
         emit BookingConfirmed(contractId, msg.sender, timestamp);
+    }
+
+    function updateShipmentStatus(
+        uint256 contractId,
+        uint8 status,
+        uint64 timestamp
+    ) external {
+        Agreement storage agreement = _getAgreement(contractId);
+        if (msg.sender != agreement.carrier) revert NotCarrier();
+        if (
+            agreement.state != ContractState.Booked &&
+            agreement.state != ContractState.InTransit
+        ) {
+            revert InvalidState(uint8(agreement.state), uint8(ContractState.Booked));
+        }
+        if (status > uint8(ShipmentStatus.ArrivedAtDestination)) {
+            revert InvalidShipmentStatus(status);
+        }
+
+        uint64 previousTimestamp = lastShipmentTimestamp[contractId];
+        if (timestamp < previousTimestamp) {
+            revert InvalidTimestamp(timestamp, previousTimestamp);
+        }
+
+        if (agreement.state == ContractState.Booked) {
+            agreement.state = ContractState.InTransit;
+        }
+        lastShipmentTimestamp[contractId] = timestamp;
+        bytes32 dataHash = keccak256(abi.encode(contractId, status, msg.sender, timestamp));
+        histories[contractId].push(
+            HistoryEntry({
+                action: 2,
+                actor: msg.sender,
+                timestamp: timestamp,
+                dataHash: dataHash
+            })
+        );
+        emit ShipmentStatusUpdated(contractId, status, msg.sender, timestamp);
     }
 
     function getContractStatus(
