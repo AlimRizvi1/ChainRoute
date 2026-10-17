@@ -79,6 +79,10 @@ Shipment status values use the frozen order `0 Dispatched`, `1 CheckpointReached
 
 The first `ArrivedAtDestination` timestamp is the demurrage start and later arrival updates do not reset it. If no arrival milestone exists, demurrage is zero. Partial late blocks and partial billable demurrage hours round up; exact boundaries do not add another block/hour. Penalty is capped at freight value first, and demurrage is capped to the remaining freight value so combined deductions never exceed freight. The assigned carrier supplies the delivery timestamp as a prototype trust simplification; it cannot precede the latest shipment status or be later than the current chain block time. A late delivery by one second therefore incurs one penalty block.
 
+## Phase 13 implementation decisions
+
+Payment release is accounting-only and is a separate operator transaction after `PenaltyCalculated`; it records the net amount and emits `PaymentReleased` without transferring tokens or currency. The operator can close only a `PaymentReleased` contract. Release and close each append one immutable history record; state checks reject retries and every further state-changing call after closure.
+
 ## Events
 
 Every state-changing operation emits its corresponding event. `confirmDelivery` additionally emits `PenaltyCalculated` and `DemurrageCalculated`, in that order, after `DeliveryConfirmed`. Event history is append-only; dispute resolution never edits earlier entries.

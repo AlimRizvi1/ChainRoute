@@ -96,6 +96,14 @@ contract ChainRouteSettlement {
         uint256 demurragePaise,
         uint64 heldSeconds
     );
+    event PaymentReleased(
+        uint256 indexed contractId,
+        uint256 grossPaise,
+        uint256 penaltyPaise,
+        uint256 demurragePaise,
+        uint256 netPaymentPaise
+    );
+    event ContractClosed(uint256 indexed contractId, uint64 timestamp);
 
     address public immutable operator;
     uint256 private nextContractId = 1;
@@ -299,6 +307,58 @@ contract ChainRouteSettlement {
             deliveryTimestamp,
             penaltyPaise
         );
+    }
+
+    function releasePayment(uint256 contractId) external returns (uint256 netPaymentPaise) {
+        Agreement storage agreement = _getAgreement(contractId);
+        if (msg.sender != operator) revert NotAuthorized();
+        if (agreement.state != ContractState.PenaltyCalculated) {
+            revert InvalidState(uint8(agreement.state), uint8(ContractState.PenaltyCalculated));
+        }
+
+        uint256 grossPaise = agreement.terms.freightValuePaise;
+        uint256 penaltyPaise = agreement.penaltyPaise;
+        uint256 demurragePaise = agreement.demurragePaise;
+        netPaymentPaise = grossPaise - penaltyPaise - demurragePaise;
+        agreement.netPaymentPaise = netPaymentPaise;
+        agreement.state = ContractState.PaymentReleased;
+
+        uint64 timestamp = uint64(block.timestamp);
+        _appendHistory(
+            contractId,
+            6,
+            msg.sender,
+            timestamp,
+            keccak256(
+                abi.encode(contractId, grossPaise, penaltyPaise, demurragePaise, netPaymentPaise)
+            )
+        );
+        emit PaymentReleased(
+            contractId,
+            grossPaise,
+            penaltyPaise,
+            demurragePaise,
+            netPaymentPaise
+        );
+    }
+
+    function closeContract(uint256 contractId) external {
+        Agreement storage agreement = _getAgreement(contractId);
+        if (msg.sender != operator) revert NotAuthorized();
+        if (agreement.state != ContractState.PaymentReleased) {
+            revert InvalidState(uint8(agreement.state), uint8(ContractState.PaymentReleased));
+        }
+
+        agreement.state = ContractState.Closed;
+        uint64 timestamp = uint64(block.timestamp);
+        _appendHistory(
+            contractId,
+            9,
+            msg.sender,
+            timestamp,
+            keccak256(abi.encode(contractId, timestamp))
+        );
+        emit ContractClosed(contractId, timestamp);
     }
 
     function getContractStatus(
