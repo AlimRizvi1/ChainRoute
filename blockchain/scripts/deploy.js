@@ -9,7 +9,8 @@ async function main() {
   const address = await contract.getAddress();
   const artifact = await hre.artifacts.readArtifact("ChainRoutePlaceholder");
   const outputPath =
-    process.env.CONTRACT_OUTPUT_PATH || "/shared/contract.json";
+    process.env.CONTRACT_OUTPUT_PATH ||
+    path.join(__dirname, "..", "deployments", "local.json");
   const output = {
     contractName: "ChainRoutePlaceholder",
     address,

@@ -62,6 +62,24 @@ The generated model artifact records its content-derived version and held-out me
 
 Each optimize call writes one success/failure trace to the AI engine's SQLite database. Compose persists the database in the `ai-run-logs` volume. Retrieve a trace by its returned run ID with `GET http://localhost:8000/v1/runs/{runId}`.
 
+### Track 2 contract workspace
+
+The pinned Hardhat workspace compiles with Solidity 0.8.28. Install its dependencies once with `npm ci` from `blockchain/`. Start a local chain in one terminal:
+
+```powershell
+npm run node
+```
+
+Then compile, test, and deploy from a second terminal in `blockchain/`:
+
+```powershell
+npm run compile
+npm test
+npm run deploy:local
+```
+
+The deploy command intentionally deploys a fresh placeholder contract each time and overwrites `blockchain/deployments/local.json` with its address, ABI, and chain ID. Set `CONTRACT_OUTPUT_PATH` to choose another output path; Docker Compose sets it to the shared artifact path consumed by the backend. The Phase 9 tests verify stored-value updates from a distinct account and one-hour local-chain time travel.
+
 ## Project layout
 
 ```text
@@ -104,7 +122,7 @@ Update this table as work is completed. Set a phase to **In progress** only when
 
 | Phase | Work | Owner | Status | Evidence / notes |
 |---|---|---|---|---|
-| 9 | Smart contract workspace and deployment pipeline | Parth | Not started | |
+| 9 | Smart contract workspace and deployment pipeline | Parth | Done | Pinned Solidity 0.8.28/Hardhat toolchain; compile succeeds; 2 Hardhat tests pass (second-account setter and 1-hour time travel); local deploy writes address/ABI/chain ID, and the recorded address has on-chain bytecode. Re-running deploy intentionally creates a fresh deployment and overwrites the local artifact. |
 | 10 | Agreement creation and booking | Parth | Not started | |
 | 11 | Transit status tracking and event log | Parth | Not started | |
 | 12 | Delivery confirmation, SLA evaluation, penalty, and demurrage | Parth | Not started | |

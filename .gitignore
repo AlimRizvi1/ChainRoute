@@ -18,3 +18,4 @@ ai-engine/optimization-runs.sqlite3*
 # Solidity / Hardhat
 artifacts/
 cache/
+blockchain/deployments/
