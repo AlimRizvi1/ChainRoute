@@ -62,6 +62,36 @@ The generated model artifact records its content-derived version and held-out me
 
 Each optimize call writes one success/failure trace to the AI engine's SQLite database. Compose persists the database in the `ai-run-logs` volume. Retrieve a trace by its returned run ID with `GET http://localhost:8000/v1/runs/{runId}`.
 
+### Track 2 contract workspace
+
+The pinned Hardhat workspace compiles with Solidity 0.8.28. Install its dependencies once with `npm ci` from `blockchain/`. Start a local chain in one terminal:
+
+```powershell
+npm run node
+```
+
+Then compile, test, and deploy from a second terminal in `blockchain/`:
+
+```powershell
+npm run compile
+npm test
+npm run deploy:local
+```
+
+The deploy command intentionally deploys a fresh contract each time and overwrites `blockchain/deployments/local.json` with its address, ABI, and chain ID. Set `CONTRACT_OUTPUT_PATH` to choose another output path; Docker Compose sets it to the shared artifact path consumed by the backend. Phase 9 verified the Hardhat deployment loop and test helpers; Phase 10 replaces the temporary probe with the agreement and booking lifecycle.
+
+To verify portability against a second fresh local network, start another node on port 8546, then run the unchanged suite with only the RPC URL redirected:
+
+```powershell
+# Terminal 1, from blockchain/
+npx hardhat node --hostname 127.0.0.1 --port 8546
+
+# Terminal 2, from blockchain/
+$env:CHAIN_RPC_URL = "http://127.0.0.1:8546"
+npm test -- --network local
+Remove-Item Env:CHAIN_RPC_URL
+```
+
 ## Project layout
 
 ```text
@@ -104,12 +134,12 @@ Update this table as work is completed. Set a phase to **In progress** only when
 
 | Phase | Work | Owner | Status | Evidence / notes |
 |---|---|---|---|---|
-| 9 | Smart contract workspace and deployment pipeline | Parth | In progress — real contract compiles and deploys | [Track 2 contract](blockchain/contracts/ChainRouteSettlement.sol) compiles with Hardhat; the default Compose deployment writes its address/ABI artifact, and the optional `track2-bridge` Compose profile connects an AI plan to an agreement. The placeholder remains only as the original Phase 2 stub. Phase 9 cleanup/documentation criteria remain. See the [Track 2 runbook](blockchain/TRACK2.md). |
-| 10 | Agreement creation and booking | Parth | In progress — core lifecycle implemented and tested | Automated tests cover agreement creation, sequential IDs, same-input agreement hashes, stored terms/history, invalid terms, unknown IDs, carrier-only booking, and duplicate booking. Remaining Phase 10 cases include hash sensitivity to changed terms and the full terms-validation matrix; see [Track 2 tests](blockchain/test/ChainRouteSettlement.test.js). |
-| 11 | Transit status tracking and event log | Parth | In progress — status lifecycle implemented and tested | Tests cover carrier authorization, status enum validation, monotonic timestamps, transition to `InTransit`, and chronological history. The plan's event/history pairing checks for every state-changing operation remain. Evidence: [Track 2 tests](blockchain/test/ChainRouteSettlement.test.js). |
-| 12 | Delivery confirmation, SLA evaluation, penalty, and demurrage | Parth | In progress — core calculations implemented and tested | Tests cover on-time delivery, vector F, started-block and free-time rounding boundaries, capped deductions, POD validation, and delivery timestamp ordering. The complete eight-vector reference table and remaining delivery edge cases are not yet automated. Evidence: [Track 2 tests](blockchain/test/ChainRouteSettlement.test.js). |
-| 13 | Settlement and contract closure | Parth | In progress — release and close flow implemented and tested | Tests verify vector-F net payment (2,326,000 paise), on-time payment, zero net after the cap, duplicate release rejection, and terminal close state. Early-release and the full post-close action matrix remain to be tested. Evidence: [Track 2 tests](blockchain/test/ChainRouteSettlement.test.js). |
-| 14 | Dispute resolution, audit interface, and portability | Parth | In progress — dispute outcomes and cross-node tests verified | Tests cover authorized dispute flow, settlement pause, all three outcomes, and retained history; the same 11-test suite passes on both Hardhat's in-memory network and the Docker-hosted local chain. Remaining dispute edge cases and a separately configured second-network run need evidence. See the [Track 2 tests](blockchain/test/ChainRouteSettlement.test.js) and [runbook](blockchain/TRACK2.md). |
+| 9 | Smart contract workspace and deployment pipeline | Parth | Done | Pinned Solidity 0.8.28/Hardhat toolchain; compile, test, and local deployment verified. The temporary setter/time-travel probe was removed when Phase 10 introduced the settlement contract; deployment intentionally creates a fresh contract and overwrites the local artifact. |
+| 10 | Agreement creation and booking | Parth | Done | `ChainRouteSettlement` implements the frozen state order, operator-only creation, assigned-carrier booking, terms/hash storage, events, and on-chain chronological history. Phase 10 Hardhat tests cover creation, IDs, hash consistency, authorization, invalid terms, booking, reads, isolation, zero IDs, and same-party accounts. Validation: [blockchain contract](docs/contracts/blockchain.md), [decision 15](docs/decisions.md). |
+| 11 | Transit status tracking and event log | Parth | Done | 9 Phase 11 Hardhat tests pass; all 12 Phase 10 regressions still pass. Verified carrier-only status updates, frozen status values, `Booked` → `InTransit` on first update, monotonic timestamps with equal timestamps allowed, and matching events plus append-only chronological history. |
+| 12 | Delivery confirmation, SLA evaluation, penalty, and demurrage | Parth | Done | All 28 blockchain Hardhat tests pass, including all eight penalty/demurrage vectors. Verified SLA boundaries, started-block and billable-hour rounding, delivery/POD/state/timestamp rejection, first-arrival timing, combined deduction cap, and ordered delivery/penalty/demurrage events with history. Decisions are recorded in [decision 17](docs/decisions.md). |
+| 13 | Settlement and contract closure | Parth | Done | All 38 blockchain Hardhat tests pass. Verified net payouts of 2,326,000 (vector F), 2,500,000 (vector A), and 0 (vector H); operator authorization, release/close state guards, no duplicate release, terminal-state enforcement, and full ordered event/history walkthrough. See [decision 18](docs/decisions.md). |
+| 14 | Dispute resolution, audit interface, and portability | Parth | Done | All 49 Hardhat tests pass on the default network and unchanged on a fresh second local node at port 8546, with only `CHAIN_RPC_URL` redirected. Verified all dispute outcomes, release blocking, role/identity checks, repeated pre-release disputes, party/arbitrator overlap, and preserved history. Implementation decisions are in [decision 19](docs/decisions.md). |
 
 ### Track 3 — Platform (Backend API + Dashboard)
 

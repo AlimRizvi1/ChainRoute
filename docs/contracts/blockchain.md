@@ -67,6 +67,26 @@ Use decimal strings for unsigned integers at the JSON boundary. `termsHash` is `
 
 The interface follows the plan's accounting-only payment decision: `releasePayment` records a payout amount; the backend stores the resulting transaction hash as the payment reference. The contract does not transfer real money or tokens.
 
+## Phase 10 implementation decisions
+
+The deploying account is the immutable operator. Agreement creation rejects an empty plan ID, zero party address, zero freight value, an SLA deadline that is not in the future, a zero penalty block length, zero wagons, or a zero terms hash. A zero wagon count is invalid because an agreement without wagons cannot be booked. Shipper and carrier may be the same address. `InvalidTerms.reasonCode` values are `0` empty plan ID, `1` invalid party address, `2` zero freight value, `3` invalid SLA deadline, `4` zero penalty block length, `5` zero wagons, and `6` zero terms hash. Creation and booking each append a history entry and emit their corresponding event.
+
+## Phase 11 implementation decisions
+
+Shipment status values use the frozen order `0 Dispatched`, `1 CheckpointReached`, `2 ArrivedAtDestination`; only the assigned carrier may post them while the contract is `Booked` or `InTransit`. A timestamp equal to the previous lifecycle timestamp is accepted; an earlier timestamp is rejected with `InvalidTimestamp`. Booking time is the lower bound for the first status timestamp. The first valid status moves the contract to `InTransit`; later statuses preserve that state. Shipment updates append history action `2` and emit `ShipmentStatusUpdated`. Later delivery logic must prevent further status updates after delivery.
+
+## Phase 12 implementation decisions
+
+The first `ArrivedAtDestination` timestamp is the demurrage start and later arrival updates do not reset it. If no arrival milestone exists, demurrage is zero. Partial late blocks and partial billable demurrage hours round up; exact boundaries do not add another block/hour. Penalty is capped at freight value first, and demurrage is capped to the remaining freight value so combined deductions never exceed freight. The assigned carrier supplies the delivery timestamp as a prototype trust simplification; it cannot precede the latest shipment status or be later than the current chain block time. A late delivery by one second therefore incurs one penalty block.
+
+## Phase 13 implementation decisions
+
+Payment release is accounting-only and is a separate operator transaction after `PenaltyCalculated`; it records the net amount and emits `PaymentReleased` without transferring tokens or currency. The operator can close only a `PaymentReleased` contract. Release and close each append one immutable history record; state checks reject retries and every further state-changing call after closure.
+
+## Phase 14 implementation decisions
+
+The deploying operator is also the fixed arbitrator. Either named contract party may raise a dispute only in `PenaltyCalculated` and before release, and `raisedBy` must match `msg.sender`. `UpholdDeductions`, `WaivePenalty`, and `WaiveAll` have values `0`, `1`, and `2`. A resolved agreement may be disputed again before release; each outcome applies to deductions in effect when that dispute was raised. The arbitrator may also be a contract party. Dispute and resolution events are mirrored by history actions `7` and `8`; original penalty/demurrage history is never edited.
+
 ## Events
 
 Every state-changing operation emits its corresponding event. `confirmDelivery` additionally emits `PenaltyCalculated` and `DemurrageCalculated`, in that order, after `DeliveryConfirmed`. Event history is append-only; dispute resolution never edits earlier entries.
@@ -90,4 +110,4 @@ The ABI exposes distinct custom errors for authorization, unknown IDs, invalid s
 
 ## Phase 1 agreement scope
 
-This ABI freezes wire shapes, enum values, units, caller roles, and on-chain history storage. Term validation edge cases, the zero-wagon policy, and additional penalty/demurrage boundary choices remain assigned to their implementation phases in [`../decisions.md`](../decisions.md).
+This ABI freezes wire shapes, enum values, units, caller roles, and on-chain history storage. Phase 10 resolved term validation and the zero-wagon policy; penalty/demurrage boundary choices remain assigned to their implementation phases in [`../decisions.md`](../decisions.md).
