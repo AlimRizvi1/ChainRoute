@@ -80,6 +80,18 @@ npm run deploy:local
 
 The deploy command intentionally deploys a fresh contract each time and overwrites `blockchain/deployments/local.json` with its address, ABI, and chain ID. Set `CONTRACT_OUTPUT_PATH` to choose another output path; Docker Compose sets it to the shared artifact path consumed by the backend. Phase 9 verified the Hardhat deployment loop and test helpers; Phase 10 replaces the temporary probe with the agreement and booking lifecycle.
 
+To verify portability against a second fresh local network, start another node on port 8546, then run the unchanged suite with only the RPC URL redirected:
+
+```powershell
+# Terminal 1, from blockchain/
+npx hardhat node --hostname 127.0.0.1 --port 8546
+
+# Terminal 2, from blockchain/
+$env:CHAIN_RPC_URL = "http://127.0.0.1:8546"
+npm test -- --network local
+Remove-Item Env:CHAIN_RPC_URL
+```
+
 ## Project layout
 
 ```text
@@ -127,7 +139,7 @@ Update this table as work is completed. Set a phase to **In progress** only when
 | 11 | Transit status tracking and event log | Parth | Done | 9 Phase 11 Hardhat tests pass; all 12 Phase 10 regressions still pass. Verified carrier-only status updates, frozen status values, `Booked` → `InTransit` on first update, monotonic timestamps with equal timestamps allowed, and matching events plus append-only chronological history. |
 | 12 | Delivery confirmation, SLA evaluation, penalty, and demurrage | Parth | Done | All 28 blockchain Hardhat tests pass, including all eight penalty/demurrage vectors. Verified SLA boundaries, started-block and billable-hour rounding, delivery/POD/state/timestamp rejection, first-arrival timing, combined deduction cap, and ordered delivery/penalty/demurrage events with history. Decisions are recorded in [decision 17](docs/decisions.md). |
 | 13 | Settlement and contract closure | Parth | Done | All 38 blockchain Hardhat tests pass. Verified net payouts of 2,326,000 (vector F), 2,500,000 (vector A), and 0 (vector H); operator authorization, release/close state guards, no duplicate release, terminal-state enforcement, and full ordered event/history walkthrough. See [decision 18](docs/decisions.md). |
-| 14 | Dispute resolution, audit interface, and portability | Parth | Not started | |
+| 14 | Dispute resolution, audit interface, and portability | Parth | Done | All 49 Hardhat tests pass on the default network and unchanged on a fresh second local node at port 8546, with only `CHAIN_RPC_URL` redirected. Verified all dispute outcomes, release blocking, role/identity checks, repeated pre-release disputes, party/arbitrator overlap, and preserved history. Implementation decisions are in [decision 19](docs/decisions.md). |
 
 ### Track 3 — Platform (Backend API + Dashboard)
 

@@ -83,6 +83,10 @@ The first `ArrivedAtDestination` timestamp is the demurrage start and later arri
 
 Payment release is accounting-only and is a separate operator transaction after `PenaltyCalculated`; it records the net amount and emits `PaymentReleased` without transferring tokens or currency. The operator can close only a `PaymentReleased` contract. Release and close each append one immutable history record; state checks reject retries and every further state-changing call after closure.
 
+## Phase 14 implementation decisions
+
+The deploying operator is also the fixed arbitrator. Either named contract party may raise a dispute only in `PenaltyCalculated` and before release, and `raisedBy` must match `msg.sender`. `UpholdDeductions`, `WaivePenalty`, and `WaiveAll` have values `0`, `1`, and `2`. A resolved agreement may be disputed again before release; each outcome applies to deductions in effect when that dispute was raised. The arbitrator may also be a contract party. Dispute and resolution events are mirrored by history actions `7` and `8`; original penalty/demurrage history is never edited.
+
 ## Events
 
 Every state-changing operation emits its corresponding event. `confirmDelivery` additionally emits `PenaltyCalculated` and `DemurrageCalculated`, in that order, after `DeliveryConfirmed`. Event history is append-only; dispute resolution never edits earlier entries.

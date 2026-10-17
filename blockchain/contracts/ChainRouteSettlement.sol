@@ -19,6 +19,12 @@ contract ChainRouteSettlement {
         ArrivedAtDestination
     }
 
+    enum DisputeOutcome {
+        UpholdDeductions,
+        WaivePenalty,
+        WaiveAll
+    }
+
     struct Terms {
         uint256 freightValuePaise;
         uint64 slaDeadline;
@@ -61,6 +67,9 @@ contract ChainRouteSettlement {
     error InvalidShipmentStatus(uint8 status);
     error InvalidTimestamp(uint64 supplied, uint64 previous);
     error EmptyProofOfDelivery();
+    error NotContractParty();
+    error NotArbitrator();
+    error InvalidDisputeOutcome(uint8 outcome);
 
     event AgreementCreated(
         uint256 indexed contractId,
@@ -104,6 +113,19 @@ contract ChainRouteSettlement {
         uint256 netPaymentPaise
     );
     event ContractClosed(uint256 indexed contractId, uint64 timestamp);
+    event DisputeRaised(
+        uint256 indexed contractId,
+        address indexed raisedBy,
+        string reasonCode,
+        uint64 timestamp
+    );
+    event DisputeResolved(
+        uint256 indexed contractId,
+        address indexed arbitrator,
+        uint8 outcome,
+        uint256 penaltyPaise,
+        uint256 demurragePaise
+    );
 
     address public immutable operator;
     uint256 private nextContractId = 1;
@@ -361,6 +383,54 @@ contract ChainRouteSettlement {
         emit ContractClosed(contractId, timestamp);
     }
 
+    function raiseDispute(
+        uint256 contractId,
+        string calldata reasonCode,
+        address raisedBy
+    ) external {
+        Agreement storage agreement = _getAgreement(contractId);
+        if (
+            raisedBy != msg.sender ||
+            (msg.sender != agreement.shipper && msg.sender != agreement.carrier)
+        ) {
+            revert NotContractParty();
+        }
+        if (agreement.state != ContractState.PenaltyCalculated) {
+            revert InvalidState(uint8(agreement.state), uint8(ContractState.PenaltyCalculated));
+        }
+
+        agreement.state = ContractState.Disputed;
+        uint64 timestamp = uint64(block.timestamp);
+        _recordDisputeRaised(contractId, raisedBy, reasonCode, timestamp);
+    }
+
+    function resolveDispute(
+        uint256 contractId,
+        uint8 outcome
+    ) external returns (uint256 penaltyPaise, uint256 demurragePaise) {
+        Agreement storage agreement = _getAgreement(contractId);
+        if (msg.sender != operator) revert NotArbitrator();
+        if (agreement.state != ContractState.Disputed) {
+            revert InvalidState(uint8(agreement.state), uint8(ContractState.Disputed));
+        }
+        if (outcome > uint8(DisputeOutcome.WaiveAll)) {
+            revert InvalidDisputeOutcome(outcome);
+        }
+
+        if (outcome == uint8(DisputeOutcome.WaivePenalty)) {
+            agreement.penaltyPaise = 0;
+        } else if (outcome == uint8(DisputeOutcome.WaiveAll)) {
+            agreement.penaltyPaise = 0;
+            agreement.demurragePaise = 0;
+        }
+        agreement.state = ContractState.PenaltyCalculated;
+        penaltyPaise = agreement.penaltyPaise;
+        demurragePaise = agreement.demurragePaise;
+
+        uint64 timestamp = uint64(block.timestamp);
+        _recordDisputeResolved(contractId, outcome, penaltyPaise, demurragePaise, timestamp);
+    }
+
     function getContractStatus(
         uint256 contractId
     ) external view returns (Agreement memory agreement, HistoryEntry[] memory history) {
@@ -503,6 +573,47 @@ contract ChainRouteSettlement {
                 timestamp: timestamp,
                 dataHash: dataHash
             })
+        );
+    }
+
+    function _recordDisputeRaised(
+        uint256 contractId,
+        address raisedBy,
+        string calldata reasonCode,
+        uint64 timestamp
+    ) private {
+        _appendHistory(
+            contractId,
+            7,
+            raisedBy,
+            timestamp,
+            keccak256(abi.encode(contractId, raisedBy, reasonCode, timestamp))
+        );
+        emit DisputeRaised(contractId, raisedBy, reasonCode, timestamp);
+    }
+
+    function _recordDisputeResolved(
+        uint256 contractId,
+        uint8 outcome,
+        uint256 penaltyPaise,
+        uint256 demurragePaise,
+        uint64 timestamp
+    ) private {
+        _appendHistory(
+            contractId,
+            8,
+            msg.sender,
+            timestamp,
+            keccak256(
+                abi.encode(contractId, msg.sender, outcome, penaltyPaise, demurragePaise, timestamp)
+            )
+        );
+        emit DisputeResolved(
+            contractId,
+            msg.sender,
+            outcome,
+            penaltyPaise,
+            demurragePaise
         );
     }
 }
