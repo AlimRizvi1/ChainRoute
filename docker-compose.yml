@@ -44,7 +44,7 @@ services:
   contract-deployer:
     build:
       context: blockchain
-    command: ["npx", "hardhat", "run", "scripts/deploy.js", "--network", "local"]
+    command: ["npx", "hardhat", "run", "scripts/deploy-track2.js", "--network", "local"]
     environment:
       CHAIN_RPC_URL: http://blockchain:8545
       CONTRACT_OUTPUT_PATH: /shared/contract.json
@@ -54,6 +54,33 @@ services:
       blockchain:
         condition: service_healthy
     restart: "no"
+
+  track2-bridge:
+    profiles: ["track2-bridge"]
+    build:
+      context: blockchain
+    command:
+      - npx
+      - hardhat
+      - run
+      - scripts/optimize-and-create-agreement.js
+      - --network
+      - local
+    environment:
+      AI_ENGINE_URL: http://ai-engine:8000
+      CHAIN_RPC_URL: http://blockchain:8545
+      CONTRACT_FILE: /shared/contract.json
+      OPTIMIZE_REQUEST_PATH: /samples/optimize-request.json
+    volumes:
+      - contract-artifacts:/shared:ro
+      - ./samples:/samples:ro
+    depends_on:
+      ai-engine:
+        condition: service_healthy
+      blockchain:
+        condition: service_healthy
+      contract-deployer:
+        condition: service_completed_successfully
 
   database:
     image: postgres:16-alpine

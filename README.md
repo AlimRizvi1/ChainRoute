@@ -37,7 +37,7 @@ docker compose up --build
 
 When the services report healthy, open the dashboard at <http://localhost:5173>. The backend health endpoint is <http://localhost:8080/health>; Track 1 is at <http://localhost:8000/health>, and the local JSON-RPC node is at <http://localhost:8545>.
 
-The AI optimize endpoint is `POST http://localhost:8000/v1/optimize`; it validates the shared request contract and returns a deterministic, deadline-feasible CP-SAT allocation ranked with the Phase 5 objective. The optional `timeBudgetSeconds` defaults to 1 second and is bounded from 0.05 to 10 seconds. The deployed placeholder contract address and ABI can be inspected at <http://localhost:8080/blockchain/contract>.
+The AI optimize endpoint is `POST http://localhost:8000/v1/optimize`; it validates the shared request contract and returns a deterministic, deadline-feasible CP-SAT allocation ranked with the Phase 5 objective. The optional `timeBudgetSeconds` defaults to 1 second and is bounded from 0.05 to 10 seconds. The deployed `ChainRouteSettlement` contract address and ABI can be inspected at <http://localhost:8080/blockchain/contract>. To submit an optimized sample plan as an on-chain agreement, run `docker compose --profile track2-bridge run --rm track2-bridge`.
 
 ### Track 1 data generation and validation
 
@@ -104,12 +104,12 @@ Update this table as work is completed. Set a phase to **In progress** only when
 
 | Phase | Work | Owner | Status | Evidence / notes |
 |---|---|---|---|---|
-| 9 | Smart contract workspace and deployment pipeline | Parth | Not started | |
-| 10 | Agreement creation and booking | Parth | Not started | |
-| 11 | Transit status tracking and event log | Parth | Not started | |
-| 12 | Delivery confirmation, SLA evaluation, penalty, and demurrage | Parth | Not started | |
-| 13 | Settlement and contract closure | Parth | Not started | |
-| 14 | Dispute resolution, audit interface, and portability | Parth | Not started | |
+| 9 | Smart contract workspace and deployment pipeline | Parth | In progress — real contract compiles and deploys | [Track 2 contract](blockchain/contracts/ChainRouteSettlement.sol) compiles with Hardhat; the default Compose deployment writes its address/ABI artifact, and the optional `track2-bridge` Compose profile connects an AI plan to an agreement. The placeholder remains only as the original Phase 2 stub. Phase 9 cleanup/documentation criteria remain. See the [Track 2 runbook](blockchain/TRACK2.md). |
+| 10 | Agreement creation and booking | Parth | In progress — core lifecycle implemented and tested | Automated tests cover agreement creation, sequential IDs, same-input agreement hashes, stored terms/history, invalid terms, unknown IDs, carrier-only booking, and duplicate booking. Remaining Phase 10 cases include hash sensitivity to changed terms and the full terms-validation matrix; see [Track 2 tests](blockchain/test/ChainRouteSettlement.test.js). |
+| 11 | Transit status tracking and event log | Parth | In progress — status lifecycle implemented and tested | Tests cover carrier authorization, status enum validation, monotonic timestamps, transition to `InTransit`, and chronological history. The plan's event/history pairing checks for every state-changing operation remain. Evidence: [Track 2 tests](blockchain/test/ChainRouteSettlement.test.js). |
+| 12 | Delivery confirmation, SLA evaluation, penalty, and demurrage | Parth | In progress — core calculations implemented and tested | Tests cover on-time delivery, vector F, started-block and free-time rounding boundaries, capped deductions, POD validation, and delivery timestamp ordering. The complete eight-vector reference table and remaining delivery edge cases are not yet automated. Evidence: [Track 2 tests](blockchain/test/ChainRouteSettlement.test.js). |
+| 13 | Settlement and contract closure | Parth | In progress — release and close flow implemented and tested | Tests verify vector-F net payment (2,326,000 paise), on-time payment, zero net after the cap, duplicate release rejection, and terminal close state. Early-release and the full post-close action matrix remain to be tested. Evidence: [Track 2 tests](blockchain/test/ChainRouteSettlement.test.js). |
+| 14 | Dispute resolution, audit interface, and portability | Parth | In progress — dispute outcomes and cross-node tests verified | Tests cover authorized dispute flow, settlement pause, all three outcomes, and retained history; the same 11-test suite passes on both Hardhat's in-memory network and the Docker-hosted local chain. Remaining dispute edge cases and a separately configured second-network run need evidence. See the [Track 2 tests](blockchain/test/ChainRouteSettlement.test.js) and [runbook](blockchain/TRACK2.md). |
 
 ### Track 3 — Platform (Backend API + Dashboard)
 
