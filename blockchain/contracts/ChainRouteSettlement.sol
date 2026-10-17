@@ -60,6 +60,7 @@ contract ChainRouteSettlement {
     error InvalidTerms(uint8 reasonCode);
     error InvalidShipmentStatus(uint8 status);
     error InvalidTimestamp(uint64 supplied, uint64 previous);
+    error EmptyProofOfDelivery();
 
     event AgreementCreated(
         uint256 indexed contractId,
@@ -79,12 +80,29 @@ contract ChainRouteSettlement {
         address indexed actor,
         uint64 timestamp
     );
+    event DeliveryConfirmed(
+        uint256 indexed contractId,
+        address indexed actor,
+        uint64 timestamp,
+        string podReference
+    );
+    event PenaltyCalculated(
+        uint256 indexed contractId,
+        uint256 penaltyPaise,
+        uint64 secondsLate
+    );
+    event DemurrageCalculated(
+        uint256 indexed contractId,
+        uint256 demurragePaise,
+        uint64 heldSeconds
+    );
 
     address public immutable operator;
     uint256 private nextContractId = 1;
     mapping(uint256 contractId => Agreement agreement) private agreements;
     mapping(uint256 contractId => HistoryEntry[] entries) private histories;
     mapping(uint256 contractId => uint64 timestamp) private lastShipmentTimestamp;
+    mapping(uint256 contractId => uint64 timestamp) private arrivalTimestamps;
 
     constructor() {
         operator = msg.sender;
@@ -179,6 +197,12 @@ contract ChainRouteSettlement {
             agreement.state = ContractState.InTransit;
         }
         lastShipmentTimestamp[contractId] = timestamp;
+        if (
+            status == uint8(ShipmentStatus.ArrivedAtDestination) &&
+            arrivalTimestamps[contractId] == 0
+        ) {
+            arrivalTimestamps[contractId] = timestamp;
+        }
         bytes32 dataHash = keccak256(abi.encode(contractId, status, msg.sender, timestamp));
         histories[contractId].push(
             HistoryEntry({
@@ -189,6 +213,92 @@ contract ChainRouteSettlement {
             })
         );
         emit ShipmentStatusUpdated(contractId, status, msg.sender, timestamp);
+    }
+
+    function confirmDelivery(
+        uint256 contractId,
+        uint64 timestamp,
+        string calldata podReference
+    ) external returns (uint256 penaltyPaise, uint256 demurragePaise) {
+        Agreement storage agreement = _getAgreement(contractId);
+        if (msg.sender != agreement.carrier) revert NotCarrier();
+        if (agreement.state != ContractState.InTransit) {
+            revert InvalidState(uint8(agreement.state), uint8(ContractState.InTransit));
+        }
+        if (bytes(podReference).length == 0) revert EmptyProofOfDelivery();
+
+        uint64 previousTimestamp = lastShipmentTimestamp[contractId];
+        if (timestamp < previousTimestamp) {
+            revert InvalidTimestamp(timestamp, previousTimestamp);
+        }
+        if (timestamp > block.timestamp) {
+            revert InvalidTimestamp(timestamp, uint64(block.timestamp));
+        }
+
+        (bool onTime, uint64 secondsLate) = _evaluateSLA(
+            agreement.terms.slaDeadline,
+            timestamp
+        );
+        penaltyPaise = _calculatePenalty(agreement.terms, secondsLate);
+        uint64 arrivedAt = arrivalTimestamps[contractId];
+        if (arrivedAt != 0) {
+            demurragePaise = _calculateDemurrage(
+                agreement.terms,
+                arrivedAt,
+                timestamp,
+                penaltyPaise
+            );
+        }
+
+        agreement.state = ContractState.Delivered;
+        agreement.onTime = onTime;
+        agreement.secondsLate = secondsLate;
+        agreement.deliveryTimestamp = timestamp;
+        agreement.podReference = podReference;
+        agreement.penaltyPaise = penaltyPaise;
+        agreement.demurragePaise = demurragePaise;
+
+        uint64 heldSeconds = arrivedAt == 0 ? 0 : timestamp - arrivedAt;
+        _recordDelivery(contractId, timestamp, podReference);
+        _recordPenalty(contractId, timestamp, penaltyPaise, secondsLate);
+        _recordDemurrage(contractId, timestamp, demurragePaise, heldSeconds);
+
+        agreement.state = ContractState.PenaltyCalculated;
+    }
+
+    function evaluateSLA(
+        uint256 contractId,
+        uint64 deliveryTimestamp
+    ) external view returns (bool onTime, uint64 secondsLate) {
+        Agreement storage agreement = _getAgreement(contractId);
+        return _evaluateSLA(agreement.terms.slaDeadline, deliveryTimestamp);
+    }
+
+    function calculatePenalty(
+        uint256 contractId,
+        uint64 secondsLate
+    ) external view returns (uint256 penaltyPaise) {
+        Agreement storage agreement = _getAgreement(contractId);
+        return _calculatePenalty(agreement.terms, secondsLate);
+    }
+
+    function calculateDemurrage(
+        uint256 contractId,
+        uint64 arrivedAtTimestamp,
+        uint64 deliveryTimestamp
+    ) external view returns (uint256 demurragePaise) {
+        Agreement storage agreement = _getAgreement(contractId);
+        (, uint64 secondsLate) = _evaluateSLA(
+            agreement.terms.slaDeadline,
+            deliveryTimestamp
+        );
+        uint256 penaltyPaise = _calculatePenalty(agreement.terms, secondsLate);
+        return _calculateDemurrage(
+            agreement.terms,
+            arrivedAtTimestamp,
+            deliveryTimestamp,
+            penaltyPaise
+        );
     }
 
     function getContractStatus(
@@ -218,5 +328,121 @@ contract ChainRouteSettlement {
         if (terms.penaltyBlockSeconds == 0) revert InvalidTerms(4);
         if (terms.wagonCount == 0) revert InvalidTerms(5);
         if (terms.termsHash == bytes32(0)) revert InvalidTerms(6);
+    }
+
+    function _evaluateSLA(
+        uint64 slaDeadline,
+        uint64 deliveryTimestamp
+    ) private pure returns (bool onTime, uint64 secondsLate) {
+        if (deliveryTimestamp <= slaDeadline) return (true, 0);
+        return (false, deliveryTimestamp - slaDeadline);
+    }
+
+    function _calculatePenalty(
+        Terms memory terms,
+        uint64 secondsLate
+    ) private pure returns (uint256) {
+        if (secondsLate == 0 || terms.penaltyBpsPerBlock == 0) return 0;
+
+        uint256 lateBlocks = (uint256(secondsLate) - 1) / terms.penaltyBlockSeconds + 1;
+        uint256 freightValue = terms.freightValuePaise;
+        uint256 basisPoints = terms.penaltyBpsPerBlock;
+        if (basisPoints >= 10000) return freightValue;
+
+        uint256 penaltyPerBlock =
+            (freightValue / 10000) * basisPoints +
+            ((freightValue % 10000) * basisPoints) / 10000;
+        if (penaltyPerBlock == 0) return 0;
+        if (lateBlocks > (freightValue - 1) / penaltyPerBlock) return freightValue;
+        return penaltyPerBlock * lateBlocks;
+    }
+
+    function _calculateDemurrage(
+        Terms memory terms,
+        uint64 arrivedAtTimestamp,
+        uint64 deliveryTimestamp,
+        uint256 penaltyPaise
+    ) private pure returns (uint256) {
+        if (deliveryTimestamp < arrivedAtTimestamp) {
+            revert InvalidTimestamp(deliveryTimestamp, arrivedAtTimestamp);
+        }
+
+        uint256 heldSeconds = deliveryTimestamp - arrivedAtTimestamp;
+        uint256 freeSeconds = uint256(terms.freeHoldingHours) * 3600;
+        if (heldSeconds <= freeSeconds || terms.demurrageRatePaisePerWagonHour == 0) {
+            return 0;
+        }
+
+        uint256 billableHours = (heldSeconds - freeSeconds + 3599) / 3600;
+        uint256 wagonHours = uint256(terms.wagonCount) * billableHours;
+        uint256 remainingDeduction = terms.freightValuePaise - penaltyPaise;
+        if (terms.demurrageRatePaisePerWagonHour > remainingDeduction / wagonHours) {
+            return remainingDeduction;
+        }
+        return terms.demurrageRatePaisePerWagonHour * wagonHours;
+    }
+
+    function _recordDelivery(
+        uint256 contractId,
+        uint64 timestamp,
+        string calldata podReference
+    ) private {
+        _appendHistory(
+            contractId,
+            3,
+            msg.sender,
+            timestamp,
+            keccak256(abi.encode(contractId, msg.sender, timestamp, podReference))
+        );
+        emit DeliveryConfirmed(contractId, msg.sender, timestamp, podReference);
+    }
+
+    function _recordPenalty(
+        uint256 contractId,
+        uint64 timestamp,
+        uint256 penaltyPaise,
+        uint64 secondsLate
+    ) private {
+        _appendHistory(
+            contractId,
+            4,
+            msg.sender,
+            timestamp,
+            keccak256(abi.encode(contractId, penaltyPaise, secondsLate))
+        );
+        emit PenaltyCalculated(contractId, penaltyPaise, secondsLate);
+    }
+
+    function _recordDemurrage(
+        uint256 contractId,
+        uint64 timestamp,
+        uint256 demurragePaise,
+        uint64 heldSeconds
+    ) private {
+        _appendHistory(
+            contractId,
+            5,
+            msg.sender,
+            timestamp,
+            keccak256(abi.encode(contractId, demurragePaise, heldSeconds))
+        );
+        emit DemurrageCalculated(contractId, demurragePaise, heldSeconds);
+    }
+
+    function _appendHistory(
+        uint256 contractId,
+        uint8 action,
+        address actor,
+        uint64 timestamp,
+        bytes32 dataHash
+    ) private {
+        histories[contractId].push(
+            HistoryEntry({
+                action: action,
+                actor: actor,
+                timestamp: timestamp,
+                dataHash: dataHash
+            })
+        );
     }
 }

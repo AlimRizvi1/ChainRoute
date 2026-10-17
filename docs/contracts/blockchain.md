@@ -75,6 +75,10 @@ The deploying account is the immutable operator. Agreement creation rejects an e
 
 Shipment status values use the frozen order `0 Dispatched`, `1 CheckpointReached`, `2 ArrivedAtDestination`; only the assigned carrier may post them while the contract is `Booked` or `InTransit`. A timestamp equal to the previous lifecycle timestamp is accepted; an earlier timestamp is rejected with `InvalidTimestamp`. Booking time is the lower bound for the first status timestamp. The first valid status moves the contract to `InTransit`; later statuses preserve that state. Shipment updates append history action `2` and emit `ShipmentStatusUpdated`. Later delivery logic must prevent further status updates after delivery.
 
+## Phase 12 implementation decisions
+
+The first `ArrivedAtDestination` timestamp is the demurrage start and later arrival updates do not reset it. If no arrival milestone exists, demurrage is zero. Partial late blocks and partial billable demurrage hours round up; exact boundaries do not add another block/hour. Penalty is capped at freight value first, and demurrage is capped to the remaining freight value so combined deductions never exceed freight. The assigned carrier supplies the delivery timestamp as a prototype trust simplification; it cannot precede the latest shipment status or be later than the current chain block time. A late delivery by one second therefore incurs one penalty block.
+
 ## Events
 
 Every state-changing operation emits its corresponding event. `confirmDelivery` additionally emits `PenaltyCalculated` and `DemurrageCalculated`, in that order, after `DeliveryConfirmed`. Event history is append-only; dispute resolution never edits earlier entries.
