@@ -1,13 +1,15 @@
 const assert = require("node:assert/strict");
-const { randomUUID } = require("node:crypto");
+const { randomUUID, randomBytes } = require("node:crypto");
 const { resolve } = require("node:path");
 const { after, test } = require("node:test");
 const { Pool } = require("pg");
 
 const { runMigrations } = require("../dist/db/migrations.js");
 const { seedDemoData } = require("../dist/db/seed.js");
+const { verifyPassword } = require("../dist/auth/password.js");
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
+const demoPassword = process.env.DEMO_USER_PASSWORD ?? randomBytes(24).toString("base64url");
 let pool;
 let schema;
 
@@ -15,6 +17,7 @@ test(
   "PostgreSQL migration, seed, constraints, relationships, and repeatable reruns",
   { skip: !databaseUrl && "Set TEST_DATABASE_URL to a dedicated local ChainRoute PostgreSQL database." },
   async () => {
+    process.env.DEMO_USER_PASSWORD = demoPassword;
     schema = `phase15_test_${process.pid}_${randomUUID().replaceAll("-", "")}`;
     const setupPool = new Pool({ connectionString: databaseUrl, max: 1 });
     await setupPool.query(`CREATE SCHEMA ${schema}`);
@@ -29,7 +32,10 @@ test(
     });
 
     const firstApply = await runMigrations(pool);
-    assert.deepEqual(firstApply, ["001_track3_platform_schema.sql"]);
+    assert.deepEqual(firstApply, [
+      "001_track3_platform_schema.sql",
+      "002_authentication_audit.sql",
+    ]);
     assert.deepEqual(await runMigrations(pool), []);
 
     const fixturePath = resolve(
@@ -47,9 +53,19 @@ test(
     });
 
     const seededUser = await pool.query(
-      "SELECT user_id FROM users WHERE username = 'demo.shipper'",
+      "SELECT user_id, password_hash FROM users WHERE username = 'demo.shipper'",
     );
     assert.equal(seededUser.rowCount, 1);
+    assert.notEqual(seededUser.rows[0].password_hash, "chainroute-demo-local");
+    assert.equal(
+      await verifyPassword(demoPassword, seededUser.rows[0].password_hash),
+      true,
+    );
+    const originalPasswordHash = seededUser.rows[0].password_hash;
+    const credentialSalts = await pool.query(
+      "SELECT DISTINCT split_part(password_hash, '$', 5) AS salt FROM users",
+    );
+    assert.equal(credentialSalts.rowCount, 4);
 
     await assert.rejects(
       pool.query(
@@ -75,6 +91,10 @@ test(
       [changedMaster.rows[0].wagon_id],
     );
     await seedDemoData(pool, fixturePath);
+    const preservedCredential = await pool.query(
+      "SELECT password_hash FROM users WHERE username = 'demo.shipper'",
+    );
+    assert.equal(preservedCredential.rows[0].password_hash, originalPasswordHash);
     const preservedMaster = await pool.query(
       "SELECT capacity_tonnes FROM wagons WHERE wagon_id = $1",
       [changedMaster.rows[0].wagon_id],

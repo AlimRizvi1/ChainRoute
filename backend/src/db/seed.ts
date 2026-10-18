@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Pool } from "pg";
+import { hashPassword } from "../auth/password.js";
 
 type FixtureWagon = {
   wagonId: string;
@@ -89,16 +90,44 @@ export async function seedDemoData(
   const added = { users: 0, wagons: 0, routes: 0 };
 
   try {
+    const missingCredentials = await client.query<{ username: string }>(
+      `SELECT demo.username
+       FROM (VALUES ('demo.shipper'), ('demo.carrier'), ('demo.administrator'), ('demo.auditor')) AS demo(username)
+       LEFT JOIN users ON users.username = demo.username
+       WHERE users.user_id IS NULL OR users.password_hash IS NULL`,
+    );
+    const passwordHashes = new Map<string, string>();
+    const demoPassword = process.env.DEMO_USER_PASSWORD;
+    if (missingCredentials.rowCount && !demoPassword) {
+      throw new Error("Set DEMO_USER_PASSWORD before seeding demo accounts.");
+    }
+    for (const { username } of missingCredentials.rows) {
+      passwordHashes.set(username, await hashPassword(demoPassword!));
+    }
+
     await client.query("BEGIN");
 
     for (const user of DEMO_USERS) {
       const result = await client.query(
-        `INSERT INTO users (user_id, username, role, chain_address)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO users (user_id, username, role, chain_address, password_hash)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (username) DO NOTHING`,
-        [stableUserId(user.username), user.username, user.role, user.chainAddress],
+        [
+          stableUserId(user.username),
+          user.username,
+          user.role,
+          user.chainAddress,
+          passwordHashes.get(user.username) ?? null,
+        ],
       );
       added.users += result.rowCount ?? 0;
+      const passwordHash = passwordHashes.get(user.username);
+      if (passwordHash) {
+        await client.query(
+          "UPDATE users SET password_hash = $1 WHERE user_id = $2 AND password_hash IS NULL",
+          [passwordHash, stableUserId(user.username)],
+        );
+      }
     }
 
     for (const wagon of fixture.wagons) {

@@ -106,6 +106,8 @@ services:
     environment:
       PORT: 8080
       NODE_ENV: development
+      AUTH_TOKEN_SECRET: "${AUTH_TOKEN_SECRET:-}"
+      DEMO_USER_PASSWORD: "${DEMO_USER_PASSWORD:-}"
       AI_ENGINE_URL: http://ai-engine:8000
       CHAIN_RPC_URL: http://blockchain:8545
       DATABASE_URL: "postgresql://${POSTGRES_USER:-chainroute}:${POSTGRES_PASSWORD:-chainroute-local}@database:5432/${POSTGRES_DB:-chainroute}"

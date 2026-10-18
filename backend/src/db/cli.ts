@@ -2,6 +2,9 @@ import { Pool } from "pg";
 import { runMigrations } from "./migrations.js";
 import { resetLocalTrack3Database, assertSafeLocalReset } from "./reset.js";
 import { seedDemoData } from "./seed.js";
+import { loadWorkspaceEnv } from "../env.js";
+
+loadWorkspaceEnv();
 
 const databaseUrl =
   process.env.DATABASE_URL ??

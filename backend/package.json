@@ -13,7 +13,9 @@
     "test": "npm run build && node --test test/*.test.cjs"
   },
   "dependencies": {
-    "fastify": "5.2.1",
+    "@fastify/jwt": "10.2.5",
+    "@fastify/rate-limit": "11.2.1",
+    "fastify": "5.12.7",
     "pg": "8.13.1"
   },
   "devDependencies": {
