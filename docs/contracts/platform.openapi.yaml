@@ -480,7 +480,7 @@ paths:
     get:
       tags: [Dashboard]
       summary: Get the role-scoped dashboard summary
-      description: "Allowed: Shipper (own data), Administrator. Carrier and Auditor are denied by the current RBAC matrix."
+      description: "Allowed: Shipper (own data) and Administrator. The response contains aggregate operational counts; the Shipper may also receive their own freight total."
       responses:
         "200":
           description: Summary counts and aggregates for the authenticated caller's scope.
@@ -947,12 +947,20 @@ components:
     DashboardSummary:
       type: object
       additionalProperties: false
-      required: [pendingOrders, activeContracts, deliveredContracts, totalFreightValuePaise]
+      required: [pendingOrders, activeContracts, deliveredContracts, pendingPayments, wagonUtilizationPercent, allocationsToday, utilizationTrend]
       properties:
         pendingOrders: { type: integer, minimum: 0 }
         activeContracts: { type: integer, minimum: 0 }
         deliveredContracts: { type: integer, minimum: 0 }
-        totalFreightValuePaise: { type: string, pattern: "^[0-9]+$" }
+        pendingPayments: { type: integer, minimum: 0 }
+        wagonUtilizationPercent: { type: integer, minimum: 0, maximum: 100 }
+        allocationsToday: { type: integer, minimum: 0 }
+        utilizationTrend:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items: { type: integer, minimum: 0, maximum: 100 }
+        totalFreightValuePaise: { type: string, pattern: "^[0-9]+$", description: "Shipper's own contract total; omitted for Administrator to preserve financial redaction." }
     AuditEntry:
       type: object
       additionalProperties: false

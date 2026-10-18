@@ -33,7 +33,7 @@ Users work through a browser and interact with the platform's TypeScript API, th
 
 ## Brand Commitments
 
-The product name is ChainRoute. The user requires a responsive platform with connected navigation, smooth page transitions, and purposeful movement in interactive controls and KPI cards. The dashboard should not read as a generic static set of separate pages. Motion must remain usable with reduced-motion preferences.
+The product name is ChainRoute. The user selected Yard Marks for the overview: evergreen ink (`#18261f`), rail-yard stone (`#e7e2d6`), chalk paper (`#f8f6ef`), signal brass (`#d29a28`), and rust (`#b44b38`); condensed industrial display type; compact, square-edged panels; and legible operational labels. The platform serves all four roles with equal care while preserving role-based access. The user requires a responsive platform with connected navigation, smooth page transitions, and purposeful movement in interactive controls and KPI cards. The dashboard should not read as a generic static set of separate pages. Motion must remain usable with reduced-motion preferences.
 
 ## Evidence on Hand
 

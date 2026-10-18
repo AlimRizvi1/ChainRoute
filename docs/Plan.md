@@ -1356,7 +1356,7 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 - An alert list surfacing recent SLA breaches, delays, and disputes.
 - A utilization trend chart.
 
-**Decisions to Confirm.** The map library and tile source, with a fallback list view if map tiles fail to load; the definition of "today"; how many alerts are shown before linking to a fuller view.
+**Decisions.** Resolved in [decision 25](decisions.md): UTC defines today; the overview uses a tile-free SVG lifecycle schematic and an always-available shipment list; alerts are bounded to five items and overview refreshes every 15 seconds.
 
 **Expected Input / Output.** Input: the backend's summary and contract-list endpoints. Output: a rendered overview with live or mock KPIs, map, and alerts.
 
@@ -1367,17 +1367,17 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 | Normal load | Summary endpoint responds | KPIs visible within the performance target from §9 |
 | Summary failure | Summary endpoint errors | An error state appears in that panel only; the rest of the screen remains usable |
 | No data yet | Zero orders exist | A clear empty state, with a link to the Run Optimization screen |
-| Live alert | A contract becomes late (simulated via the API) | A new alert appears without a manual page refresh |
+| Live alert | A contract enters a dispute or becomes late | A new alert appears within one 15-second refresh interval |
 | Small viewport | 375px-wide viewport | No horizontal overflow; KPIs stack vertically |
 | Mock data indicator | The mock API is in use | The screen clearly indicates the data is sample data |
 
 **Edge Cases**
 - A very large number of active alerts — the list must be bounded or paginated, not render unbounded DOM elements.
-- The map failing to load (no network, blocked tiles) — the fallback must still convey the same information in list form.
+- The schematic is rendered locally and needs no map tiles; the shipment list remains available as a text alternative.
 
 **Acceptance Criteria**
-- [ ] Loading, populated, empty, and error states all look intentional, not accidental.
-- [ ] Keyboard navigation order is sensible, and focus is visibly indicated throughout.
+- [x] Loading, populated, empty, and error states all look intentional, not accidental.
+- [x] Keyboard navigation order is sensible, and focus is visibly indicated throughout.
 
 ---
 

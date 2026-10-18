@@ -91,6 +91,11 @@ test(
     const shipperToken = app.jwt.sign({ sub: shipper.rows[0].user_id, role: "Shipper" });
     const carrierToken = app.jwt.sign({ sub: carrier.rows[0].user_id, role: "Carrier" });
     const headers = { authorization: `Bearer ${shipperToken}` };
+    const initialSummary = await app.inject({ method: "GET", url: "/dashboard/summary", headers });
+    assert.equal(initialSummary.statusCode, 200, initialSummary.body);
+    assert.equal(initialSummary.json().pendingOrders, 0);
+    assert.equal(initialSummary.json().utilizationTrend.length, 7);
+    assert.equal((await app.inject({ method: "GET", url: "/dashboard/summary", headers: { authorization: `Bearer ${carrierToken}` } })).statusCode, 403);
 
     const invalid = await app.inject({ method: "POST", url: "/orders", headers, payload: {
       cargoType: "Coal", quantityTonnes: -1, destination: "North", priority: 2, deadline: new Date(Date.now() + 3600_000).toISOString(),
@@ -107,6 +112,7 @@ test(
     assert.equal(created.statusCode, 201);
     const orderId = created.json().orderId;
     assert.equal(created.json().status, "Pending");
+    assert.equal((await app.inject({ method: "GET", url: "/dashboard/summary", headers })).json().pendingOrders, 1);
 
     const noWeights = await app.inject({ method: "POST", url: "/optimizations/run", headers, payload: { weights: { onTime: -1, cost: 1, utilization: 1 } } });
     assert.equal(noWeights.statusCode, 400);

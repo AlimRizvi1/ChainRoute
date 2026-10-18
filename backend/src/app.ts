@@ -5,6 +5,7 @@ import type { Writable } from "node:stream";
 import type { Pool } from "pg";
 import { registerAuthentication } from "./auth/plugin.js";
 import { registerOrderRoutes } from "./orders/routes.js";
+import { registerDashboardRoutes } from "./dashboard/routes.js";
 import { registerContractRoutes } from "./contracts/routes.js";
 import { registerContractPush } from "./contracts/push.js";
 import { startContractSync } from "./contracts/sync.js";
@@ -84,6 +85,7 @@ export async function createPlatformApp(options: PlatformAppOptions) {
     aiEngineUrl,
     options.optimizationTimeoutMs ?? 60_000,
   );
+  await registerDashboardRoutes(app, database);
   const contractPush = registerContractPush(app, database);
   await registerContractRoutes(app, database, chainRpcUrl, contractPath);
   startContractSync(app, database, chainRpcUrl, contractPath, contractPush);

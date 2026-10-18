@@ -7,6 +7,7 @@ import { canVisit, navigationForRole } from "../auth/roles";
 import { LoadingState } from "../components/StatePanel";
 import { RouteTransition } from "../components/RouteTransition";
 import { BackendUnavailable, HealthBanner, useServiceHealth } from "../components/ServiceStatus";
+import { OverviewPage } from "./OverviewPage";
 
 const DEMO_USERS = [
   { username: "demo.shipper", role: "Shipper" },
@@ -23,7 +24,7 @@ export function AppRoutes() {
         <Route element={<WorkspaceShell />}>
           <Route element={<RouteTransition />}>
           <Route index element={<Navigate to="/overview" replace />} />
-          <Route path="overview" element={<FoundationPage title="Network overview" description="A shared view of freight activity and the work available to your role." />} />
+          <Route path="overview" element={<OverviewPage />} />
           <Route path="orders" element={<PermissionPage path="/orders" title="Freight orders" />} />
           <Route path="allocations" element={<PermissionPage path="/allocations" title="Allocations" />} />
           <Route path="contracts" element={<PermissionPage path="/contracts" title="Contracts" />} />

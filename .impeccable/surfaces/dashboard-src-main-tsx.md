@@ -9,14 +9,14 @@ related_targets: []
 
 ## Direction contract
 
-**THESIS.** ChainRoute is a shared freight workspace where the split-fountain registration ripple makes a new milestone noticeable without taking control away from the operator. The overview replaces a generic pile of KPI tiles with clear role paths, current service state, and freight activity.
+**THESIS.** ChainRoute is a shared freight operations board: Yard Marks makes live movement and decisions easy to scan through workmanlike typography, signal color, and precise route marks.
 
-**OWN-WORLD.** Use the Fillmore handbill palette across the shell: navy for the navigation rail, cream for the work ground, tomato for the primary action and live change, and marigold for selection and a second registration layer. Bowlby One SC carries large display moments; Manrope carries every label, control, and data value. Standard web navigation, forms, filters, tables, and buttons remain familiar.
+**OWN-WORLD.** Use evergreen ink (`#18261f`), rail-yard stone (`#e7e2d6`), chalk paper (`#f8f6ef`), signal brass (`#d29a28`), and rust (`#b44b38`). Use condensed industrial display type with Manrope for controls and data. Panels and controls favor compact, square geometry. Standard browser navigation, forms, and buttons remain familiar.
 
-**STORY.** Shippers, Carriers, Administrators, and Auditors each see an equally legible entry to their permitted work. A visitor can identify the platform’s health, locate a contract or order, and follow the latest lifecycle change. Synthetic records are labeled as sample data; the browser never invents or recomputes settlement values.
+**STORY.** Shippers, Carriers, Administrators, and Auditors receive equally legible entry to their permitted work. The overview exposes shared shipment movement, settlement queue, and operational activity while keeping order and utilization details within the existing role permissions. Synthetic records are labeled; the browser does not invent shipment locations or calculate settlement values.
 
-**FIRST VIEWPORT.** A 248px navy rail holds the brand, role-filtered routes, and account identity. The warm workspace has a compact top bar for environment status, a large registered title, an equal four-role workflow band, operational indicators, and the current freight table beside health and event activity. A changed lifecycle row carries the only registration ripple; service and settlement states keep their semantic colors.
+**FIRST VIEWPORT.** A dark evergreen rail holds the brand, role-filtered routes, and account identity. The stone workspace sets an uppercase condensed heading above four KPI cards, a schematic corridor that only marks confirmed in-transit contracts, a seven-day utilization chart for permitted roles, and a bounded signal board. A shipment list remains visible as a text alternative to the schematic.
 
-**FORM.** Fillmore Handbill is the assigned visual world, sixth in the ordered list of seven grounded directions. The roll reference is `seed:b193fc9bdb7127dc`. The handbill contributes display scale, committed color, compact editorial density, and one registration motion; it does not supply the product’s navigation or controls.
+**FORM.** Yard Marks, chosen by the user for Phase 21. This supersedes the earlier Fillmore direction for the overview and dashboard design system.
 
-**FINISH.** unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+**FINISH.** Keep the experience responsive and motion-aware, and verify populated, empty, error, and reduced-motion states before calling the screen finished.

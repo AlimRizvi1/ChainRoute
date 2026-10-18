@@ -47,6 +47,28 @@ export async function mockRequest(path: string, request: MockRequest): Promise<R
     });
   }
   if (!request.token) return error(401, "INVALID_TOKEN", "Sign in to continue.");
+  if (cleanPath === "/dashboard/summary" && request.method === "GET") {
+    return json({
+      pendingOrders: 12,
+      activeContracts: 8,
+      deliveredContracts: 17,
+      pendingPayments: 3,
+      wagonUtilizationPercent: 74,
+      allocationsToday: 5,
+      utilizationTrend: [58, 62, 60, 68, 65, 71, 74],
+      sampleData: true,
+    });
+  }
+  if (cleanPath === "/contracts" && request.method === "GET") {
+    const contracts = [
+      { contractId: "CR-2048", planId: "plan-demo-0001", state: "InTransit", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "232600000" },
+      { contractId: "CR-2047", planId: "plan-demo-0002", state: "Booked", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "184000000" },
+      { contractId: "CR-2046", planId: "plan-demo-0003", state: "Disputed", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "126500000" },
+      { contractId: "CR-2045", planId: "plan-demo-0004", state: "Created", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "96500000" },
+      { contractId: "CR-2044", planId: "plan-demo-0005", state: "PenaltyCalculated", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "148000000" },
+    ];
+    return json({ items: contracts, nextCursor: null, sampleData: true });
+  }
   if (cleanPath === "/orders" && request.method === "GET") {
     return json({ items: plentifulDataset.orders, nextCursor: null, sampleData: true });
   }
