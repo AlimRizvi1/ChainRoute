@@ -2,10 +2,15 @@
   "name": "chainroute-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "ChainRoute Phase 2 health and service skeleton",
+  "description": "ChainRoute platform API",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "db:migrate": "npm run build && node dist/db/cli.js migrate",
+    "db:seed": "npm run build && node dist/db/cli.js seed",
+    "db:setup": "npm run build && node dist/db/cli.js setup",
+    "db:reset": "npm run build && node dist/db/cli.js reset",
+    "test": "npm run build && node --test test/*.test.cjs"
   },
   "dependencies": {
     "fastify": "5.2.1",

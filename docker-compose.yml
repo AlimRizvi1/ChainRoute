@@ -101,12 +101,15 @@ services:
 
   backend:
     build:
-      context: backend
+      context: .
+      dockerfile: backend/Dockerfile
     environment:
       PORT: 8080
+      NODE_ENV: development
       AI_ENGINE_URL: http://ai-engine:8000
       CHAIN_RPC_URL: http://blockchain:8545
       DATABASE_URL: "postgresql://${POSTGRES_USER:-chainroute}:${POSTGRES_PASSWORD:-chainroute-local}@database:5432/${POSTGRES_DB:-chainroute}"
+      MASTER_DATA_SEED_PATH: /samples/plentiful-dataset.json
       CONTRACT_FILE: /shared/contract.json
       DEPENDENCY_TIMEOUT_MS: "${DEPENDENCY_TIMEOUT_MS:-5000}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"

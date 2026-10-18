@@ -1,6 +1,8 @@
 import Fastify from "fastify";
 import { readFile } from "node:fs/promises";
 import { Pool } from "pg";
+import { runMigrations } from "./db/migrations.js";
+import { seedDemoData } from "./db/seed.js";
 
 type DependencyState = "up" | "down";
 type HealthResponse = {
@@ -17,7 +19,7 @@ const aiEngineUrl = process.env.AI_ENGINE_URL ?? "http://ai-engine:8000";
 const chainRpcUrl = process.env.CHAIN_RPC_URL ?? "http://blockchain:8545";
 const databaseUrl =
   process.env.DATABASE_URL ??
-  "postgresql://chainroute:chainroute@database:5432/chainroute";
+  "postgresql://chainroute:chainroute-local@database:5432/chainroute";
 const contractPath = process.env.CONTRACT_FILE ?? "/shared/contract.json";
 const dependencyTimeoutMs = Number(
   process.env.DEPENDENCY_TIMEOUT_MS ?? "5000",
@@ -147,9 +149,20 @@ app.addHook("onClose", async () => {
 
 const start = async (): Promise<void> => {
   try {
+    const applied = await runMigrations(database);
+    if (applied.length > 0) {
+      app.log.info({ migrations: applied }, "Database migrations applied");
+    }
+    if (process.env.NODE_ENV !== "production") {
+      const seeded = await seedDemoData(database);
+      if (Object.values(seeded).some((count) => count > 0)) {
+        app.log.info({ seeded }, "Local demo data added");
+      }
+    }
     await app.listen({ host: "0.0.0.0", port });
   } catch (error) {
-    app.log.error(error);
+    app.log.error({ err: error }, "Backend initialization failed");
+    await app.close().catch(() => undefined);
     process.exitCode = 1;
   }
 };
