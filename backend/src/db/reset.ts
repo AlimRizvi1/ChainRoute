@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 
 const RESET_TABLES = [
+  "chain_sync_state",
   "contract_operations",
   "contract_events",
   "delivery_events",

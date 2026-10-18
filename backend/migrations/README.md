@@ -17,6 +17,7 @@ The four usernames are `demo.shipper`, `demo.carrier`, `demo.administrator`, and
 | `plan_orders` | Join table linking a plan to every order included in its input and preserving whether that order was assigned. Unique order linkage prevents the same locked order silently entering a second run. |
 | `contracts` | Cached on-chain lifecycle state and immutable plan/party/terms/assignment snapshot, monetary values in integer paise, and cache reconciliation markers. The plan has at most one contract. |
 | `contract_operations` | Idempotency ledger for contract creation and lifecycle transactions. A unique key binds each request hash to its on-chain transaction and replayable result; pending rows remain recoverable by reading chain state/events. |
+| `chain_sync_state` | Persistent chain ID and event-log cursor for restart-safe ledger polling and periodic cache reconciliation. |
 | `contract_events` | Ordered event/history cache. The on-chain transaction/log position is unique when present, so event replay can be idempotent. |
 | `delivery_events` | Shipment milestones and delivery proof, timestamps, actor and confirmed SLA result. Platform persists chain-returned values without recomputing money. |
 | `payments` | One accounting settlement per contract, gross/deduction/net paise and optional on-chain transaction reference, with release/closure ordering. A database check makes the figures reconcile. |

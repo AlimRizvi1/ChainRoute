@@ -109,7 +109,7 @@ export async function registerContractRoutes(
       const rows = result.rows.slice(0, limit);
       const last = rows.at(-1);
       return reply.code(200).send({
-        items: rows.map(contractSummary),
+        items: rows.map((row) => contractSummary(row, actor.userId === row.shipper_id || actor.userId === row.carrier_id)),
         ...(hasMore && last ? { nextCursor: makeCursor(last.created_at, last.contract_id) } : { nextCursor: null }),
       });
     },
@@ -121,24 +121,23 @@ export async function registerContractRoutes(
     async (request, reply) => {
       const row = await getVisibleContract(database, request.params.contractId, request.actor!);
       if (!row) return apiError(reply, 404, "NOT_FOUND", "Contract was not found.");
-      try {
-        const { provider, contract } = await openSettlement(chainRpcUrl, contractPath);
-        const status = await contract.getFunction("getContractStatus")(BigInt(row.contract_id));
-        await provider.destroy();
-        const agreement = status[0];
-        const history = status[1].map((entry: any) => ({
-          action: ["AgreementCreated", "BookingConfirmed", "ShipmentStatusUpdated", "DeliveryConfirmed", "PenaltyCalculated", "DemurrageCalculated", "PaymentReleased", "DisputeRaised", "DisputeResolved", "ContractClosed"][Number(entry.action)] ?? "Unknown",
-          actor: entry.actor, timestamp: new Date(Number(entry.timestamp) * 1000).toISOString(), dataHash: entry.dataHash,
-        }));
-        return reply.code(200).send({
-          contractId: row.contract_id, planId: row.plan_id, state: getStateName(agreement.state), shipperId: row.shipper_id,
-          carrierId: row.carrier_id, terms: row.terms, termsHash: row.terms_hash, assignments: row.assignments,
-          penaltyPaise: agreement.penaltyPaise.toString(), demurragePaise: agreement.demurragePaise.toString(),
-          netPaymentPaise: agreement.netPaymentPaise.toString(), history,
-        });
-      } catch (error) {
-        return chainError(reply, error);
-      }
+      const actor = request.actor!;
+      const isParty = actor.userId === row.shipper_id || actor.userId === row.carrier_id;
+      if (!isParty) return reply.code(200).send({
+        contractId: row.contract_id, planId: row.plan_id, state: row.state,
+        shipperId: row.shipper_id, carrierId: row.carrier_id,
+      });
+      const historyResult = await database.query<{ action: string; actor_address: string; occurred_at: Date; data_hash: string }>(
+        "SELECT action, actor_address, occurred_at, data_hash FROM contract_events WHERE contract_id = $1 ORDER BY occurred_at, contract_event_id",
+        [row.contract_id],
+      );
+      return reply.code(200).send({
+        contractId: row.contract_id, planId: row.plan_id, state: row.state, shipperId: row.shipper_id,
+        carrierId: row.carrier_id, terms: row.terms, termsHash: row.terms_hash, assignments: row.assignments,
+        penaltyPaise: row.penalty_paise, demurragePaise: row.demurrage_paise,
+        netPaymentPaise: row.net_payment_paise ?? row.freight_value_paise,
+        history: historyResult.rows.map((event) => ({ action: event.action, actor: event.actor_address, timestamp: event.occurred_at.toISOString(), dataHash: event.data_hash })),
+      });
     },
   );
 
@@ -244,6 +243,7 @@ export async function registerContractRoutes(
 
 async function acceptPlan(request: FastifyRequest<{ Params: { planId: string }; Body: TermsInput }>, reply: FastifyReply, db: Pool, rpcUrl: string, artifactPath: string) {
   const actor = request.actor!;
+  let queuedOperationId: string | undefined;
   const planResult = actor.role === "Administrator"
     ? await db.query("SELECT plan_payload, created_by FROM allocation_plans WHERE plan_id = $1", [request.params.planId])
     : await db.query("SELECT plan_payload, created_by FROM allocation_plans WHERE plan_id = $1 AND created_by = $2", [request.params.planId, actor.userId]);
@@ -284,8 +284,12 @@ async function acceptPlan(request: FastifyRequest<{ Params: { planId: string }; 
     const requestHash = hashRequest({ ...termsDocument, idempotencyKey });
     const operation = await reserveOperation(db, {
       planId: request.params.planId, contractId: null, action: "accept", idempotencyKey, requestHash,
+      requestPayload: request.body, actorUserId: actor.userId,
+      workerToken: request.headers["x-chainroute-worker-token"] as string | undefined,
     });
     if (operation.kind === "replay") return reply.code(200).send(operation.payload);
+    if (operation.kind === "queued") return queuedReply(reply, operation.operationId);
+    queuedOperationId = operation.operationId;
     opened = await openSettlement(rpcUrl, artifactPath);
     const operator = getAddress(await opened.contract.getFunction("operator")());
     const existing = await db.query("SELECT contract_id FROM contracts WHERE plan_id = $1", [request.params.planId]);
@@ -347,8 +351,12 @@ async function acceptPlan(request: FastifyRequest<{ Params: { planId: string }; 
     } finally { client.release(); }
     return reply.code(200).send(response);
   } catch (error) {
-    if (error instanceof ActionError) return apiError(reply, error.status, error.code, error.message);
+    if (queuedOperationId && isChainUnavailable(error)) {
+      await queueOperation(db, queuedOperationId, error);
+      return queuedReply(reply, queuedOperationId);
+    }
     await markOperationFailed(db, request.params.planId, "accept", request.headers["idempotency-key"] as string | undefined, error);
+    if (error instanceof ActionError) return apiError(reply, error.status, error.code, error.message);
     return chainError(reply, error);
   } finally { await opened?.provider.destroy(); }
 }
@@ -378,8 +386,14 @@ async function runContractAction(
   if (!row) return apiError(reply, 404, "NOT_FOUND", "Contract was not found.");
   const idempotencyKey = getIdempotencyKey(request);
   const requestHash = hashRequest(body);
-  const reserved = await reserveOperation(db, { planId: row.plan_id, contractId: row.contract_id, action, idempotencyKey, requestHash });
+  const reserved = await reserveOperation(db, {
+    planId: row.plan_id, contractId: row.contract_id, action, idempotencyKey, requestHash,
+    requestPayload: body && typeof body === "object" ? body as Record<string, unknown> : {},
+    actorUserId: actor.userId,
+    workerToken: request.headers["x-chainroute-worker-token"] as string | undefined,
+  });
   if (reserved.kind === "replay") return reply.code(200).send(reserved.payload);
+  if (reserved.kind === "queued") return queuedReply(reply, reserved.operationId);
   let opened: Awaited<ReturnType<typeof openSettlement>> | undefined;
   let client: PoolClient | undefined;
   try {
@@ -410,6 +424,10 @@ async function runContractAction(
     await completeOperation(db, reserved.operationId, row.plan_id, action, idempotencyKey, response, response.transactionHash as string | null ?? null, row.contract_id);
     return reply.code(200).send(response);
   } catch (error) {
+    if (isChainUnavailable(error)) {
+      await queueOperation(db, reserved.operationId, error);
+      return queuedReply(reply, reserved.operationId);
+    }
     await markOperationFailed(db, row.plan_id, action, idempotencyKey, error);
     if (error instanceof ActionError) return apiError(reply, error.status, error.code, error.message);
     return chainError(reply, error);
@@ -419,21 +437,31 @@ async function runContractAction(
   }
 }
 
-async function reserveOperation(db: Pool, value: { planId: string; contractId: string | null; action: string; idempotencyKey: string; requestHash: string }) {
+async function reserveOperation(db: Pool, value: {
+  planId: string; contractId: string | null; action: string; idempotencyKey: string; requestHash: string;
+  requestPayload: Record<string, unknown>; actorUserId: string; workerToken?: string;
+}) {
   const operationId = randomUUID();
   const inserted = await db.query(
-    `INSERT INTO contract_operations (operation_id, plan_id, contract_id, action, idempotency_key, request_hash, status)
-     VALUES ($1, $2, $3, $4, $5, $6, 'pending') ON CONFLICT (plan_id, action, idempotency_key) DO NOTHING`,
-    [operationId, value.planId, value.contractId, value.action, value.idempotencyKey, value.requestHash],
+    `INSERT INTO contract_operations (operation_id, plan_id, contract_id, action, idempotency_key, request_hash, status, request_payload, actor_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7::jsonb, $8) ON CONFLICT (plan_id, action, idempotency_key) DO NOTHING`,
+    [operationId, value.planId, value.contractId, value.action, value.idempotencyKey, value.requestHash, JSON.stringify(value.requestPayload), value.actorUserId],
   );
   if (inserted.rowCount === 1) return { kind: "new" as const, operationId };
-  const existing = await db.query<{ operation_id: string; request_hash: string; status: string; response_payload: Record<string, unknown> | null }>(
-    "SELECT operation_id, request_hash, status, response_payload FROM contract_operations WHERE plan_id = $1 AND action = $2 AND idempotency_key = $3",
+  const existing = await db.query<{ operation_id: string; request_hash: string; status: string; response_payload: Record<string, unknown> | null; worker_token: string | null }>(
+    "SELECT operation_id, request_hash, status, response_payload, worker_token FROM contract_operations WHERE plan_id = $1 AND action = $2 AND idempotency_key = $3",
     [value.planId, value.action, value.idempotencyKey],
   );
   const row = existing.rows[0];
   if (!row || row.request_hash !== value.requestHash) throw new ActionError(409, "IDEMPOTENCY_KEY_REUSED", "The idempotency key was already used with a different request.");
   if (row.status === "succeeded" && row.response_payload) return { kind: "replay" as const, payload: row.response_payload };
+  if (row.status === "queued" || row.status === "processing") {
+    if (row.status === "processing" && value.workerToken && row.worker_token === value.workerToken) {
+      await db.query("UPDATE contract_operations SET status = 'pending', worker_token = NULL, updated_at = now() WHERE operation_id = $1", [row.operation_id]);
+      return { kind: "new" as const, operationId: row.operation_id };
+    }
+    return { kind: "queued" as const, operationId: row.operation_id };
+  }
   if (row.status === "failed") {
     await db.query("UPDATE contract_operations SET status = 'pending', failure_code = NULL, updated_at = now() WHERE operation_id = $1", [row.operation_id]);
     return { kind: "new" as const, operationId: row.operation_id };
@@ -480,6 +508,26 @@ async function markOperationFailed(db: Pool, planId: string, action: string, key
   ).catch(() => undefined);
 }
 
+async function queueOperation(db: Pool, operationId: string, _error: unknown) {
+  const queued = await db.query(
+    `UPDATE contract_operations SET status = 'queued', worker_token = NULL, failure_code = 'BLOCKCHAIN_UNAVAILABLE',
+       next_attempt_at = now() + make_interval(secs => LEAST(30, power(2, LEAST(attempt_count, 5))::integer)), updated_at = now()
+     WHERE operation_id = $1 AND status IN ('pending', 'processing')`,
+    [operationId],
+  );
+  if (queued.rowCount !== 1) throw new Error("The blockchain action could not be durably queued.");
+}
+
+function queuedReply(reply: FastifyReply, operationId: string) {
+  return reply.code(202).send({ status: "queued", operationId, message: "The blockchain action is queued and will retry automatically." });
+}
+
+function isChainUnavailable(error: unknown): boolean {
+  if (error instanceof ActionError) return false;
+  const message = error instanceof Error ? error.message : String(error);
+  return /ECONNREFUSED|ECONNRESET|ETIMEDOUT|network error|fetch failed|could not detect network|timeout|socket hang up|SERVER_ERROR|missing response/i.test(message);
+}
+
 async function getVisibleContract(db: Pool, contractId: string, actor: AuthenticatedActor): Promise<ContractRow | undefined> {
   const result = actor.role === "Shipper"
     ? await db.query<ContractRow>("SELECT * FROM contracts WHERE contract_id = $1 AND shipper_id = $2", [contractId, actor.userId])
@@ -522,8 +570,12 @@ function parseCursor(value?: string): { createdAt: string; contractId: string } 
   throw new ActionError(400, "INVALID_CURSOR", "The contract list cursor is invalid.");
 }
 function makeCursor(createdAt: Date, contractId: string): string { return Buffer.from(JSON.stringify({ createdAt: createdAt.toISOString(), contractId })).toString("base64url"); }
-function contractSummary(row: ContractRow) {
-  return { contractId: row.contract_id, planId: row.plan_id, state: row.state, shipperId: row.shipper_id, carrierId: row.carrier_id, freightValuePaise: row.freight_value_paise, slaDeadline: row.sla_deadline.toISOString() };
+function contractSummary(row: ContractRow, isParty: boolean) {
+  return {
+    contractId: row.contract_id, planId: row.plan_id, state: row.state,
+    shipperId: row.shipper_id, carrierId: row.carrier_id,
+    ...(isParty ? { freightValuePaise: row.freight_value_paise, slaDeadline: row.sla_deadline.toISOString() } : {}),
+  };
 }
 async function alreadyApplied(action: string, agreement: any, body: any, contract: Contract, contractId: bigint): Promise<boolean> {
   const state = getStateName(agreement.state);

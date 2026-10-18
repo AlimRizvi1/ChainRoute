@@ -6,6 +6,8 @@ import type { Pool } from "pg";
 import { registerAuthentication } from "./auth/plugin.js";
 import { registerOrderRoutes } from "./orders/routes.js";
 import { registerContractRoutes } from "./contracts/routes.js";
+import { registerContractPush } from "./contracts/push.js";
+import { startContractSync } from "./contracts/sync.js";
 
 type DependencyState = "up" | "down";
 type HealthResponse = {
@@ -82,7 +84,9 @@ export async function createPlatformApp(options: PlatformAppOptions) {
     aiEngineUrl,
     options.optimizationTimeoutMs ?? 60_000,
   );
+  const contractPush = registerContractPush(app, database);
   await registerContractRoutes(app, database, chainRpcUrl, contractPath);
+  startContractSync(app, database, chainRpcUrl, contractPath, contractPush);
 
   app.get(
     "/health",

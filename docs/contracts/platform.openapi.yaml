@@ -180,6 +180,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "202": { $ref: "#/components/responses/Queued" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /plans/{planId}/export:
@@ -243,14 +244,17 @@ paths:
       - $ref: "#/components/parameters/ContractId"
     get:
       tags: [Contracts]
-      summary: Get contract terms, current state, deductions, and history
-      description: "Shipper sees own contracts; Carrier sees assigned contracts; Administrator and Auditor see all. Auditor access is read-only."
+      summary: Get cached contract details and event history
+      description: "Shipper sees own contracts and Carrier sees assigned contracts, including commercial terms. Administrator and Auditor can see all contract states but receive a redacted overview without terms, assignments, or financial values. Reads continue from cache during chain outages."
       responses:
         "200":
           description: Contract visible to the caller.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ContractDetail" }
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ContractDetail"
+                  - $ref: "#/components/schemas/ContractOverview"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
   /contracts/{contractId}/confirm-booking:
@@ -271,6 +275,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "202": { $ref: "#/components/responses/Queued" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /contracts/{contractId}/shipment-status:
@@ -303,6 +308,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "202": { $ref: "#/components/responses/Queued" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /contracts/{contractId}/confirm-delivery:
@@ -346,6 +352,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "202": { $ref: "#/components/responses/Queued" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /contracts/{contractId}/dispute:
@@ -377,6 +384,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "202": { $ref: "#/components/responses/Queued" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /contracts/{contractId}/resolve-dispute:
@@ -408,6 +416,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "202": { $ref: "#/components/responses/Queued" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /contracts/{contractId}/release-payment:
@@ -436,6 +445,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "202": { $ref: "#/components/responses/Queued" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /contracts/{contractId}/close:
@@ -463,6 +473,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "202": { $ref: "#/components/responses/Queued" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /dashboard/summary:
@@ -769,6 +780,11 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Queued:
+      description: The blockchain operation is durably queued and will retry automatically.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/QueuedOperation" }
     UpstreamTimeout:
       description: An upstream service did not respond within the configured timeout.
       content:
@@ -837,7 +853,7 @@ components:
     ContractSummary:
       type: object
       additionalProperties: false
-      required: [contractId, planId, state, shipperId, carrierId, freightValuePaise, slaDeadline]
+      required: [contractId, planId, state, shipperId, carrierId]
       properties:
         contractId: { type: string, pattern: "^[1-9][0-9]*$" }
         planId: { type: string }
@@ -846,6 +862,24 @@ components:
         carrierId: { type: string }
         freightValuePaise: { type: string, pattern: "^[0-9]+$" }
         slaDeadline: { type: string, format: date-time }
+    ContractOverview:
+      type: object
+      additionalProperties: false
+      required: [contractId, planId, state, shipperId, carrierId]
+      properties:
+        contractId: { type: string, pattern: "^[1-9][0-9]*$" }
+        planId: { type: string }
+        state: { $ref: "#/components/schemas/ContractState" }
+        shipperId: { type: string }
+        carrierId: { type: string }
+    QueuedOperation:
+      type: object
+      additionalProperties: false
+      required: [status, operationId, message]
+      properties:
+        status: { const: queued }
+        operationId: { type: string, format: uuid }
+        message: { type: string }
     ContractDetail:
       type: object
       additionalProperties: false
