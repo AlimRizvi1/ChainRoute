@@ -112,24 +112,33 @@ paths:
                   default: 1
       responses:
         "200":
-          description: Plan generated and persisted.
+          description: Plan generated and persisted, or an empty result when no pending orders exist.
           content:
             application/json:
               schema:
-                $ref: "./ai-engine.schema.json#/$defs/allocationPlan"
+                oneOf:
+                  - $ref: "./ai-engine.schema.json#/$defs/allocationPlan"
+                  - type: object
+                    additionalProperties: false
+                    required: [status, message, plan]
+                    properties:
+                      status: { const: empty }
+                      message: { type: string }
+                      plan: { type: "null" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "502": { $ref: "#/components/responses/UpstreamInvalidResponse" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
         "504": { $ref: "#/components/responses/UpstreamTimeout" }
+        "409": { $ref: "#/components/responses/Conflict" }
   /plans/{planId}:
     parameters:
       - $ref: "#/components/parameters/PlanId"
     get:
       tags: [Orders and plans]
       summary: Retrieve a saved allocation plan
-      description: "Allowed: the owning Shipper and Administrator. Other roles receive 404."
+      description: "Allowed: the owning Shipper and Administrator. A non-owning Shipper receives 404; roles outside the permission matrix receive 403."
       responses:
         "200":
           description: Plan found.
@@ -138,6 +147,7 @@ paths:
               schema: { $ref: "./ai-engine.schema.json#/$defs/allocationPlan" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /plans/{planId}/accept:
     parameters:
       - $ref: "#/components/parameters/PlanId"
@@ -178,7 +188,7 @@ paths:
     get:
       tags: [Orders and plans]
       summary: Export a saved allocation plan
-      description: "Allowed: the owning Shipper and Administrator."
+      description: "Allowed: the owning Shipper and Administrator. A non-owning Shipper receives 404; roles outside the permission matrix receive 403."
       parameters:
         - name: format
           in: query
@@ -194,6 +204,7 @@ paths:
               schema: { type: string }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /contracts:
     get:
       tags: [Contracts]

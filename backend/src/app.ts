@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import type { Writable } from "node:stream";
 import type { Pool } from "pg";
 import { registerAuthentication } from "./auth/plugin.js";
+import { registerOrderRoutes } from "./orders/routes.js";
 
 type DependencyState = "up" | "down";
 type HealthResponse = {
@@ -22,6 +23,7 @@ export type PlatformAppOptions = {
   chainRpcUrl?: string;
   contractPath?: string;
   dependencyTimeoutMs?: number;
+  optimizationTimeoutMs?: number;
   logLevel?: string;
   logger?: boolean;
   loggerStream?: Writable;
@@ -52,6 +54,33 @@ export async function createPlatformApp(options: PlatformAppOptions) {
   });
 
   await registerAuthentication(app, database, options.tokenSecret);
+  app.setErrorHandler((error, request, reply) => {
+    const requestError = error as Error & { statusCode?: number; validation?: Array<{ dataPath?: string; instancePath?: string; message?: string; params?: { missingProperty?: string } }> };
+    const validation = requestError.validation;
+    if (validation) {
+      const fields: Record<string, string> = {};
+      for (const item of validation) {
+        const path = item.instancePath ?? item.dataPath ?? "";
+        const field = `${path}${item.params?.missingProperty ? `.${item.params.missingProperty}` : ""}`.replace(/^\./, "");
+        fields[field || "request"] = item.message ?? "Invalid value.";
+      }
+      return reply.code(400).send({ error: { code: "VALIDATION_ERROR", message: "Request fields are invalid.", fields } });
+    }
+    if (requestError.statusCode && requestError.statusCode < 500) {
+      return reply.code(requestError.statusCode).send({ error: {
+        code: requestError.statusCode === 429 ? "RATE_LIMITED" : "REQUEST_REJECTED",
+        message: requestError.statusCode === 429 ? "Too many requests. Try again shortly." : "The request could not be accepted.",
+      } });
+    }
+    request.log.error({ err: error }, "Unhandled request error");
+    return reply.code(500).send({ error: { code: "INTERNAL_ERROR", message: "The request could not be completed." } });
+  });
+  await registerOrderRoutes(
+    app,
+    database,
+    aiEngineUrl,
+    options.optimizationTimeoutMs ?? 60_000,
+  );
 
   app.get(
     "/health",
