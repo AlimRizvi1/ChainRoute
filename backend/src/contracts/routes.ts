@@ -123,11 +123,14 @@ export async function registerContractRoutes(
       if (!row) return apiError(reply, 404, "NOT_FOUND", "Contract was not found.");
       const actor = request.actor!;
       const isParty = actor.userId === row.shipper_id || actor.userId === row.carrier_id;
-      const historyResult = await database.query<{ action: string; actor_address: string; occurred_at: Date; data_hash: string }>(
-        "SELECT action, actor_address, occurred_at, data_hash FROM contract_events WHERE contract_id = $1 ORDER BY occurred_at, contract_event_id",
+      const historyResult = await database.query<{ action: string; actor_address: string; occurred_at: Date; data_hash: string; payload: Record<string, unknown> }>(
+        "SELECT action, actor_address, occurred_at, data_hash, payload FROM contract_events WHERE contract_id = $1 ORDER BY occurred_at, contract_event_id",
         [row.contract_id],
       );
-      const history = historyResult.rows.map((event) => ({ action: event.action, actor: event.actor_address, timestamp: event.occurred_at.toISOString(), dataHash: event.data_hash }));
+      const history = historyResult.rows.map((event) => ({
+        action: event.action, actor: event.actor_address, timestamp: event.occurred_at.toISOString(), dataHash: event.data_hash,
+        ...(isParty ? { details: event.payload } : publicMilestoneDetails(event.action, event.payload) ? { details: publicMilestoneDetails(event.action, event.payload) } : {}),
+      }));
       if (!isParty) return reply.code(200).send({
         contractId: row.contract_id, planId: row.plan_id, state: row.state,
         shipperId: row.shipper_id, carrierId: row.carrier_id, history,
@@ -240,6 +243,12 @@ export async function registerContractRoutes(
       return { contractId: ctx.row.contract_id, state: "Closed", transactionHash };
     }),
   );
+}
+
+function publicMilestoneDetails(action: string, payload: Record<string, unknown>) {
+  if (action === "ShipmentStatusUpdated") return { status: payload.status, timestamp: payload.timestamp };
+  if (action === "DeliveryConfirmed") return { timestamp: payload.timestamp };
+  return undefined;
 }
 
 async function acceptPlan(request: FastifyRequest<{ Params: { planId: string }; Body: TermsInput }>, reply: FastifyReply, db: Pool, rpcUrl: string, artifactPath: string) {

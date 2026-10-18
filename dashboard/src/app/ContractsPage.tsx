@@ -158,9 +158,70 @@ function ContractDetailPage({ contractId, role }: { contractId: string; role?: s
         </form>}
       </section>
       {!redacted && <section className="optimization-panel contract-assignment-panel"><div className="panel-heading"><div><p className="eyebrow">PLAN SNAPSHOT</p><h2>Committed assignments</h2></div><span className="panel-count">{detail.assignments?.length ?? 0} loads</span></div>{detail.assignments?.length ? <div className="assignment-table-wrap"><table className="assignment-table contract-assignment-table"><thead><tr><th>Order</th><th>Load</th><th>Wagons</th><th>Route</th><th>Schedule</th></tr></thead><tbody>{detail.assignments.map((assignment) => <tr key={assignment.orderId}><td><strong>{assignment.orderId}</strong></td><td>{assignment.quantityTonnes} t · {assignment.cargoType}</td><td>{assignment.wagonIds.join(", ")}</td><td><strong>{assignment.route.origin} → {assignment.route.destination}</strong><small>{assignment.route.routeId}</small></td><td><strong>Depart · {formatDate(assignment.departAt)}</strong><small>ETA · {formatDate(assignment.eta)}</small></td></tr>)}</tbody></table></div> : <EmptyState title="No assigned wagons"><p>This plan did not include a contracted assignment.</p></EmptyState>}</section>}
+      {!redacted && <TrackingPanel detail={detail} history={history} />}
       <section className="optimization-panel contract-history-panel"><div className="panel-heading"><div><p className="eyebrow">APPEND-ONLY EVENT LOG</p><h2>State history</h2></div><span className="panel-count">{history.length} events</span></div>{history.length ? <ol className="contract-history">{history.map((event, index) => <li key={`${event.timestamp}-${event.dataHash}`} style={{ "--item-index": index } as React.CSSProperties}><span className="history-node" aria-hidden="true">{index + 1}</span><div className="history-event"><strong>{humanizeEvent(event.action)}</strong><small>{formatDate(event.timestamp)} · {event.actor}</small><code>{event.dataHash}</code></div></li>)}</ol> : <div className="redacted-note"><strong>{redacted ? "Event detail is not included in this role’s redacted view." : "No cached lifecycle events yet."}</strong><p>The displayed state remains available while the event log synchronizes.</p></div>}</section>
-      <section className="optimization-panel contract-settlement-panel"><div className="panel-heading"><div><p className="eyebrow">SETTLEMENT / PAise</p><h2>Recorded deductions</h2></div><span className="optimization-step">03</span></div>{redacted ? <p className="redacted-inline">Payment amounts are hidden for Administrator and Auditor views.</p> : <div className="settlement-values"><Term label="Penalty" value={formatPaise(detail.penaltyPaise)} /><Term label="Demurrage" value={formatPaise(detail.demurragePaise)} /><Term label="Net accounting value" value={formatPaise(detail.netPaymentPaise)} emphasis /></div>}</section>
+      <SettlementBreakdown detail={detail} history={history} redacted={redacted} />
     </div>
+  </section>;
+}
+
+function TrackingPanel({ detail, history }: { detail: ContractDetail; history: ContractDetail["history"] }) {
+  const shipmentEvents = (history ?? []).filter((event) => event.action === "ShipmentStatusUpdated" && typeof event.details?.status === "string");
+  const lastShipment = shipmentEvents.at(-1);
+  const lastStatus = typeof lastShipment?.details?.status === "string" ? lastShipment.details.status : null;
+  const delivery = [...(history ?? [])].reverse().find((event) => event.action === "DeliveryConfirmed");
+  const delivered = ["Delivered", "PenaltyCalculated", "PaymentReleased", "Closed", "Disputed"].includes(detail.state);
+  const stages = ["Dispatched", "CheckpointReached", "ArrivedAtDestination", "Delivered"];
+  const stageIndex = delivered ? 3 : Math.max(-1, stages.indexOf(lastStatus ?? ""));
+  const plannedEta = (detail.assignments ?? []).map((assignment) => Date.parse(assignment.eta)).filter(Number.isFinite).sort((a, b) => b - a)[0];
+  const sla = Date.parse(detail.terms?.slaDeadline ?? "");
+  const deliveredAt = typeof delivery?.details?.timestamp === "string" ? Date.parse(delivery.details.timestamp) : Date.parse(delivery?.timestamp ?? "");
+  const deliveryKnown = delivered && Number.isFinite(deliveredAt);
+  const atRisk = deliveryKnown ? deliveredAt > sla : Number.isFinite(plannedEta) && Number.isFinite(sla) && plannedEta > sla;
+  const serviceLabel = deliveryKnown ? atRisk ? "Delivered after SLA" : "SLA met" : atRisk ? "Planned ETA after SLA" : Number.isFinite(plannedEta) ? "Within SLA plan" : "ETA unavailable";
+  const serviceTime = deliveryKnown ? deliveredAt : plannedEta;
+  const routes = [...new Map((detail.assignments ?? []).map((assignment) => [assignment.route.routeId, assignment.route])).values()];
+  return <section className="optimization-panel contract-tracking-panel" aria-labelledby="tracking-title">
+    <div className="panel-heading"><div><p className="eyebrow">ROUTE / SERVICE WINDOW</p><h2 id="tracking-title">Shipment tracking</h2></div><span className={`service-status${atRisk ? " is-risk" : ""}`}><i />{serviceLabel}</span></div>
+    <div className="tracking-route-summary"><span className="route-origin">{routes[0]?.origin ?? "Route pending"}</span><span className="route-arrow" aria-hidden="true">→</span><span className="route-destination">{routes[0]?.destination ?? "Awaiting assignment"}</span>{routes.length > 1 && <small>+ {routes.length - 1} more routes</small>}</div>
+    <ol className="shipment-milestones" aria-label={`Shipment milestones. Current milestone: ${delivered ? "Delivered" : lastStatus ? humanizeEvent(lastStatus) : "Awaiting dispatch"}`}>
+      {stages.map((stage, index) => {
+        const event = stage === "Delivered" ? delivery : shipmentEvents.find((item) => item.details?.status === stage);
+        const complete = index <= stageIndex;
+        const current = index === stageIndex && !delivered;
+        return <li key={stage} className={`${complete ? "is-complete" : ""}${current ? " is-current" : ""}`}><span>{complete ? "✓" : String(index + 1).padStart(2, "0")}</span><strong>{stage === "CheckpointReached" ? "Checkpoint" : stage === "ArrivedAtDestination" ? "Destination" : stage}</strong><small>{event ? formatDate(event.timestamp) : complete ? "Recorded · awaiting event detail" : "Awaiting milestone"}</small></li>;
+      })}
+    </ol>
+    <div className="tracking-service-window"><div><small>{deliveryKnown ? "ACTUAL DELIVERY" : "LATEST PLANNED ARRIVAL"}</small><strong>{Number.isFinite(serviceTime) ? formatDate(new Date(serviceTime!).toISOString()) : "Not available"}</strong></div><span aria-hidden="true">vs</span><div><small>CONTRACT SLA</small><strong>{detail.terms?.slaDeadline ? formatDate(detail.terms.slaDeadline) : "Not available"}</strong></div></div>
+    <p className="tracking-footnote">Milestones are sourced from the contract event cache. The ETA is the latest immutable plan assignment, not a live location estimate.</p>
+  </section>;
+}
+
+function SettlementBreakdown({ detail, history, redacted }: { detail: ContractDetail; history: ContractDetail["history"]; redacted: boolean }) {
+  const penaltyEvent = [...(history ?? [])].reverse().find((event) => event.action === "PenaltyCalculated");
+  const demurrageEvent = [...(history ?? [])].reverse().find((event) => event.action === "DemurrageCalculated");
+  const secondsLate = numericDetail(penaltyEvent?.details?.secondsLate);
+  const heldSeconds = numericDetail(demurrageEvent?.details?.heldSeconds);
+  const blockSeconds = detail.terms?.penaltyBlockSeconds ?? 0;
+  const penaltyBlocks = secondsLate === null || blockSeconds < 1 ? null : secondsLate === 0n ? 0n : (secondsLate - 1n) / BigInt(blockSeconds) + 1n;
+  const freeSeconds = BigInt(detail.terms?.freeHoldingHours ?? 0) * 3600n;
+  const billableHours = heldSeconds === null ? null : heldSeconds <= freeSeconds ? 0n : (heldSeconds - freeSeconds + 3599n) / 3600n;
+  const computed = ["Delivered", "PenaltyCalculated", "PaymentReleased", "Closed", "Disputed"].includes(detail.state);
+  const onHold = detail.state === "Disputed";
+  const capped = Boolean(detail.terms?.freightValuePaise && detail.penaltyPaise && /^\d+$/.test(detail.penaltyPaise) && detail.penaltyPaise === detail.terms.freightValuePaise && BigInt(detail.penaltyPaise) > 0n);
+  return <section className="optimization-panel contract-settlement-panel" aria-labelledby="settlement-title">
+    <div className="panel-heading"><div><p className="eyebrow">SETTLEMENT / INR PAISE SOURCE</p><h2 id="settlement-title">Settlement breakdown</h2></div><span className={`settlement-state${onHold ? " is-hold" : ""}`}>{onHold ? "On hold · dispute" : computed ? detail.state === "PaymentReleased" || detail.state === "Closed" ? "Accounting release recorded" : "Calculation recorded" : "Awaiting delivery"}</span></div>
+    {redacted ? <p className="redacted-inline">Commercial terms and settlement amounts are hidden for Administrator and Auditor views.</p> : <>
+      {onHold && <p className="settlement-hold" role="status">A dispute is open. The recorded settlement remains on hold until it is resolved.</p>}
+      {!computed && <p className="settlement-pending">The contract has not recorded a delivery calculation. Freight and deduction amounts will appear here when the backend reports them.</p>}
+      <div className="settlement-values"><Term label="Freight value" value={formatPaise(detail.terms?.freightValuePaise)} />
+        <div className="settlement-line"><div><dt>Penalty</dt><small>{penaltyBlocks === null ? "Calculation detail pending" : `${penaltyBlocks.toString()} ${penaltyBlocks === 1n ? "block" : "blocks"} × ${detail.terms?.penaltyBpsPerBlock ?? 0} BPS per ${formatDuration(blockSeconds)} block`}</small></div><dd>{computed ? formatPaise(detail.penaltyPaise) : "Pending"}</dd></div>
+        <div className="settlement-line"><div><dt>Demurrage</dt><small>{billableHours === null ? "Calculation detail pending" : `${detail.terms?.wagonCount ?? 0} wagons × ${billableHours.toString()} billable ${billableHours === 1n ? "hour" : "hours"} × ${formatPaise(detail.terms?.demurrageRatePaisePerWagonHour)} per wagon-hour`}</small></div><dd>{computed ? formatPaise(detail.demurragePaise) : "Pending"}</dd></div>
+        {capped && <p className="settlement-cap">Penalty reached the freight value cap recorded by the contract.</p>}
+        <div className="settlement-net"><dt>{detail.state === "PaymentReleased" || detail.state === "Closed" ? "Net accounting value released" : "Net payable recorded by backend"}</dt><dd>{computed ? formatPaise(detail.netPaymentPaise) : "Pending"}</dd></div>
+      </div>
+      <p className="settlement-footnote">Amounts are returned by the contract API in integer paise and formatted here for display. This screen does not calculate settlement money.</p>
+    </>}
   </section>;
 }
 
@@ -199,4 +260,22 @@ function actionDescription(action: ContractAction) {
 function actionIcon(action: ContractAction) { return ({ "confirm-booking": "✓", "shipment-status": "↗", "confirm-delivery": "▣", dispute: "!", "resolve-dispute": "⚖", "release-payment": "₹", close: "×" })[action]; }
 function humanizeEvent(action: string) { return action.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").replace(/^./, (letter) => letter.toUpperCase()); }
 function formatDate(value: string) { const parsed = Date.parse(value); return Number.isFinite(parsed) ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(parsed)) : "—"; }
-function formatPaise(value?: string) { const amount = Number(value ?? "0") / 100; return Number.isFinite(amount) ? new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(amount) : "—"; }
+function formatPaise(value?: string | null) {
+  if (typeof value !== "string" || !/^-?\d+$/.test(value)) return "—";
+  const amount = BigInt(value);
+  const absolute = amount < 0n ? -amount : amount;
+  const rupees = absolute / 100n;
+  const paise = String(absolute % 100n).padStart(2, "0");
+  return `${amount < 0n ? "−" : ""}₹${new Intl.NumberFormat("en-IN").format(rupees)}.${paise}`;
+}
+function numericDetail(value: unknown) {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return BigInt(value);
+  if (typeof value === "string" && /^\d+$/.test(value)) return BigInt(value);
+  return null;
+}
+function formatDuration(seconds: number) {
+  if (seconds > 0 && seconds % 86400 === 0) return `${seconds / 86400}-day`;
+  if (seconds > 0 && seconds % 3600 === 0) return `${seconds / 3600}-hour`;
+  if (seconds > 0 && seconds % 60 === 0) return `${seconds / 60}-minute`;
+  return `${seconds}-second`;
+}

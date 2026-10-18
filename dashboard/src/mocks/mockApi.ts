@@ -80,14 +80,32 @@ export async function mockRequest(path: string, request: MockRequest): Promise<R
     if (!contract) return error(404, "NOT_FOUND", "Contract was not found.");
     const roleKey = Object.keys(demoRoles).find((username) => request.token === `mock-${username}`);
     const role = roleKey ? demoRoles[roleKey] : "Auditor";
-    const history = [{ action: "AgreementCreated", actor: `0x${"1".repeat(40)}`, timestamp: "2026-10-18T08:00:00Z", dataHash: `0x${"c".repeat(64)}` }, { action: contract.state === "InTransit" ? "ShipmentStatusUpdated" : "ContractStateChanged", actor: `0x${"2".repeat(40)}`, timestamp: "2026-10-18T09:00:00Z", dataHash: `0x${"d".repeat(64)}` }];
-    if (role === "Administrator" || role === "Auditor") return json({ contractId: contract.contractId, planId: contract.planId, state: contract.state, shipperId: contract.shipperId, carrierId: contract.carrierId, history, sampleData: true });
+    const vectorF = contract.contractId === "2044";
+    const history = [
+      { action: "AgreementCreated", actor: `0x${"1".repeat(40)}`, timestamp: "2026-10-18T08:00:00Z", dataHash: `0x${"c".repeat(64)}`, details: {} },
+      { action: "BookingConfirmed", actor: `0x${"2".repeat(40)}`, timestamp: "2026-10-18T08:15:00Z", dataHash: `0x${"e".repeat(64)}`, details: {} },
+      { action: "ShipmentStatusUpdated", actor: `0x${"2".repeat(40)}`, timestamp: "2026-10-18T09:00:00Z", dataHash: `0x${"d".repeat(64)}`, details: { status: contract.lastShipmentStatus ?? (contract.state === "InTransit" ? "CheckpointReached" : "Dispatched"), timestamp: "2026-10-18T09:00:00Z" } },
+      ...(vectorF ? [
+        { action: "ShipmentStatusUpdated", actor: `0x${"2".repeat(40)}`, timestamp: "2026-11-01T21:00:00Z", dataHash: `0x${"f".repeat(64)}`, details: { status: "ArrivedAtDestination", timestamp: "2026-11-01T21:00:00Z" } },
+        { action: "DeliveryConfirmed", actor: `0x${"2".repeat(40)}`, timestamp: "2026-11-02T07:00:00Z", dataHash: `0x${"9".repeat(64)}`, details: { timestamp: "2026-11-02T07:00:00Z" } },
+        { action: "PenaltyCalculated", actor: `0x${"1".repeat(40)}`, timestamp: "2026-11-02T07:00:01Z", dataHash: `0x${"8".repeat(64)}`, details: { penaltyPaise: "150000", secondsLate: "46800" } },
+        { action: "DemurrageCalculated", actor: `0x${"1".repeat(40)}`, timestamp: "2026-11-02T07:00:02Z", dataHash: `0x${"7".repeat(64)}`, details: { demurragePaise: "24000", heldSeconds: "36000" } },
+      ] : []),
+    ];
+    if (role === "Administrator" || role === "Auditor") return json({ contractId: contract.contractId, planId: contract.planId, state: contract.state, shipperId: contract.shipperId, carrierId: contract.carrierId, history: history.map(({ action, actor, timestamp, dataHash, details }) => ({ action, actor, timestamp, dataHash, ...(["ShipmentStatusUpdated", "DeliveryConfirmed"].includes(action) ? { details } : {}) })), sampleData: true });
     const payload = allocationPlan as typeof allocationPlan & Record<string, any>;
+    const assignments: Array<Record<string, any>> = payload.assignments.map((assignment: Record<string, any>) => ({ ...assignment, departAt: "2026-11-01T08:00:00Z", eta: "2026-11-02T15:00:00Z" }));
+    if (vectorF && assignments.length > 0) {
+      assignments[assignments.length - 1] = {
+        ...assignments[assignments.length - 1],
+        wagonIds: [...assignments[assignments.length - 1].wagonIds, "WAG-0011", "WAG-0012"],
+      };
+    }
     return json({
       contractId: contract.contractId, planId: contract.planId, state: contract.state, shipperId: contract.shipperId, carrierId: contract.carrierId,
-      terms: { freightValuePaise: contract.freightValuePaise, slaDeadline: contract.slaDeadline, penaltyBpsPerBlock: 100, penaltyBlockSeconds: 3600, freeHoldingHours: 4, demurrageRatePaisePerWagonHour: "5000", wagonCount: 10 },
-      termsHash: `0x${"a".repeat(64)}`, assignments: payload.assignments,
-      penaltyPaise: "150000", demurragePaise: "24000", netPaymentPaise: "2326000",
+      terms: { freightValuePaise: vectorF ? "2500000" : contract.freightValuePaise, slaDeadline: contract.slaDeadline, penaltyBpsPerBlock: vectorF ? 200 : 100, penaltyBlockSeconds: vectorF ? 21600 : 3600, freeHoldingHours: vectorF ? 6 : 4, demurrageRatePaisePerWagonHour: vectorF ? "500" : "5000", wagonCount: vectorF ? 12 : 10 },
+      termsHash: `0x${"a".repeat(64)}`, assignments,
+      ...(vectorF ? { penaltyPaise: "150000", demurragePaise: "24000", netPaymentPaise: "2326000" } : {}),
       history, sampleData: true,
     });
   }
@@ -95,6 +113,7 @@ export async function mockRequest(path: string, request: MockRequest): Promise<R
   if (actionMatch && request.method === "POST") {
     const contract = mockContracts.find((entry) => entry.contractId === decodeURIComponent(actionMatch[1]));
     if (!contract) return error(404, "NOT_FOUND", "Contract was not found.");
+    if (actionMatch[2] === "shipment-status") contract.lastShipmentStatus = (request.body as { status?: string } | undefined)?.status ?? "Dispatched";
     const nextState: Record<string, string> = { "confirm-booking": "Booked", "shipment-status": "InTransit", "confirm-delivery": "PenaltyCalculated", dispute: "Disputed", "resolve-dispute": "PenaltyCalculated", "release-payment": "PaymentReleased", close: "Closed" };
     contract.state = nextState[actionMatch[2]];
     return json({ contractId: contract.contractId, state: contract.state, ...(actionMatch[2] === "confirm-delivery" ? { onTime: false, secondsLate: 3600, penaltyPaise: "150000", demurragePaise: "24000", netPaymentPaise: "2326000" } : {}) });

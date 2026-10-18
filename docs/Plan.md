@@ -1499,8 +1499,8 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 - A very large penalty due to extreme lateness (approaching or hitting the cap from Phase 12) — the breakdown must clearly indicate the cap was applied, not just show a number that silently looks wrong.
 
 **Acceptance Criteria**
-- [ ] The vector-F breakdown renders exactly as specified above.
-- [ ] Colour is never the only signal distinguishing on-time from late, or settled from disputed.
+- [x] The vector-F breakdown renders exactly as specified above in the contract screen test; live contract confirmation remains dependent on the configured local database and chain.
+- [x] Colour is never the only signal distinguishing on-time from late, or settled from disputed; state and hold status are also stated in text.
 
 ---
 

@@ -477,7 +477,44 @@ a { color: inherit; text-underline-offset: 3px; }
 .contract-action-form-buttons { display: flex; justify-content: end; gap: 8px; }
 .contract-action-form-buttons button { min-height: 36px; border-radius: 3px; font-size: 8px; }
 .contract-action-form-buttons .primary-button { padding-inline: 10px; }
-.contract-assignment-panel, .contract-history-panel, .contract-settlement-panel { grid-column: 1 / -1; }
+.contract-assignment-panel, .contract-history-panel, .contract-settlement-panel, .contract-tracking-panel { grid-column: 1 / -1; }
+.contract-tracking-panel { overflow: hidden; }
+.contract-tracking-panel .panel-heading { align-items: start; }
+.service-status, .settlement-state { display: inline-flex; align-items: center; gap: 7px; max-width: 48%; padding: 7px 9px; border: 1px solid #b9c9b5; background: #eaf0e9; color: #285640; font-size: 8px; font-weight: 900; text-align: right; }
+.service-status i { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #347a5b; }
+.service-status.is-risk, .settlement-state.is-hold { border-color: #d8a998; background: #fbede6; color: #8b392e; }
+.service-status.is-risk i { background: var(--tomato); }
+.tracking-route-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; min-height: 42px; padding: 9px 12px; border: 1px solid #d9cfbd; background: #f3efe6; }
+.tracking-route-summary > span { color: var(--ink); font-family: Impact, "Arial Narrow", sans-serif; font-size: 17px; font-weight: 500; }
+.tracking-route-summary .route-arrow { color: var(--tomato); font-family: "Manrope Variable", sans-serif; font-size: 14px; }
+.tracking-route-summary > small { color: var(--muted); font-size: 9px; }
+.shipment-milestones { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 18px 0 14px; padding: 0; list-style: none; }
+.shipment-milestones::before { position: absolute; top: 13px; right: 8%; left: 8%; height: 1px; background: #d5cbbb; content: ""; }
+.shipment-milestones li { position: relative; display: grid; justify-items: center; gap: 6px; min-width: 0; color: var(--muted); text-align: center; }
+.shipment-milestones li > span { display: grid; width: 27px; height: 27px; place-items: center; border: 1px solid #c9c1b3; background: var(--surface); color: var(--muted); font-size: 8px; font-weight: 900; transition: transform .2s ease, background-color .2s ease, color .2s ease; }
+.shipment-milestones li.is-complete > span { border-color: #56775f; background: #56775f; color: #fff; }
+.shipment-milestones li.is-current > span { outline: 3px solid #d29a2838; border-color: var(--tomato); background: var(--tomato); color: #fff; transform: scale(1.08); }
+.shipment-milestones li strong { color: var(--ink-soft); font-size: 9px; }
+.shipment-milestones li small { max-width: 100%; color: var(--muted); font-size: 8px; line-height: 1.4; }
+.tracking-service-window { display: grid; grid-template-columns: minmax(0, 1fr) 26px minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px 0 4px; border-top: 1px solid #d8cebd; }
+.tracking-service-window > div { display: grid; gap: 4px; min-width: 0; }
+.tracking-service-window small { color: var(--muted); font-size: 7px; font-weight: 900; letter-spacing: .08em; }
+.tracking-service-window strong { overflow-wrap: anywhere; color: var(--ink); font-size: 10px; }
+.tracking-service-window > span { justify-self: center; color: var(--tomato); font-size: 9px; font-weight: 900; }
+.tracking-footnote, .settlement-footnote { margin: 10px 0 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
+.settlement-state { white-space: normal; }
+.settlement-hold { margin: 0 0 12px; padding: 10px 12px; border: 1px solid #d8a998; background: #fbede6; color: #7d342b; font-size: 10px; line-height: 1.5; }
+.settlement-pending { margin: 0 0 12px; padding: 10px 12px; border: 1px dashed #c6b79e; background: #f5f1e8; color: var(--ink-soft); font-size: 10px; line-height: 1.5; }
+.settlement-values { display: grid; gap: 0; }
+.settlement-line { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-top: 1px solid #e1d9cc; }
+.settlement-line > div { display: grid; gap: 4px; min-width: 0; }
+.settlement-line dt, .settlement-net dt { color: var(--ink-soft); font-size: 10px; font-weight: 800; }
+.settlement-line small { color: var(--muted); font-size: 8px; line-height: 1.45; }
+.settlement-line dd, .settlement-net dd { flex: 0 0 auto; margin: 0; color: var(--ink); font-family: "Manrope Variable", sans-serif; font-size: 11px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.settlement-cap { margin: 0; padding: 8px 10px; border: 1px solid #d8a998; color: #8b392e; font-size: 9px; }
+.settlement-net { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 4px; padding: 14px 12px; border: 1px solid #b9c9b5; background: #eaf0e9; }
+.settlement-net dt { color: #285640; }
+.settlement-net dd { color: #1d553a; font-size: 16px; }
 .contract-assignment-table { min-width: 690px; }
 .contract-history { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
 .contract-history li { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; min-height: 66px; animation: rise-in .3s both; animation-delay: calc(var(--item-index) * 35ms); }
@@ -508,7 +545,7 @@ a { color: inherit; text-underline-offset: 3px; }
   .timeline-node { width: 24px; height: 24px; font-size: 7px; }
   .contract-timeline ol::before { top: 11px; }
   .contract-detail-grid { grid-template-columns: minmax(0, 1fr); }
-  .contract-assignment-panel, .contract-history-panel, .contract-settlement-panel { grid-column: auto; }
+  .contract-assignment-panel, .contract-history-panel, .contract-settlement-panel, .contract-tracking-panel { grid-column: auto; }
 }
 @media (max-width: 480px) {
   .contract-filters { grid-template-columns: minmax(0, 1fr); }

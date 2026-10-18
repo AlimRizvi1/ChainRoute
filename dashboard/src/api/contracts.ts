@@ -29,7 +29,7 @@ export type ContractDetail = ContractSummary & {
   penaltyPaise?: string;
   demurragePaise?: string;
   netPaymentPaise?: string;
-  history?: Array<{ action: string; actor: string; timestamp: string; dataHash: string }>;
+  history?: Array<{ action: string; actor: string; timestamp: string; dataHash: string; details?: Record<string, unknown> }>;
 };
 export type ContractPage = { items: ContractSummary[]; nextCursor: string | null };
 export type ContractAction = "confirm-booking" | "shipment-status" | "confirm-delivery" | "dispute" | "resolve-dispute" | "release-payment" | "close";

@@ -65,6 +65,40 @@ describe("contract ledger", () => {
     expect(screen.queryByText(/₹25,000/)).not.toBeInTheDocument();
   });
 
+  it("shows planned arrival against the SLA and labels it as a plan estimate", async () => {
+    vi.mocked(getContract).mockResolvedValue({ ...detail, state: "InTransit", history: [{ ...detail.history![0], action: "ShipmentStatusUpdated", details: { status: "CheckpointReached", timestamp: "2026-10-31T12:00:00Z" } }] });
+    mount("/contracts/2045", "Carrier");
+    expect(await screen.findByRole("heading", { name: "Shipment tracking" })).toBeInTheDocument();
+    expect(screen.getByText("Within SLA plan")).toBeInTheDocument();
+    expect(screen.getByText("Checkpoint")).toBeInTheDocument();
+    expect(screen.getByText(/latest immutable plan assignment, not a live location estimate/)).toBeInTheDocument();
+    expect(screen.getAllByText(/1 Nov 2026/)).toHaveLength(2);
+  });
+
+  it("renders the vector-F settlement from API paise values and event quantities", async () => {
+    vi.mocked(getContract).mockResolvedValue({
+      ...detail,
+      state: "PenaltyCalculated",
+      terms: { ...detail.terms!, freightValuePaise: "2500000", slaDeadline: "2026-11-01T18:00:00Z", penaltyBpsPerBlock: 200, penaltyBlockSeconds: 21600, freeHoldingHours: 6, demurrageRatePaisePerWagonHour: "500", wagonCount: 12 },
+      assignments: detail.assignments!.map((assignment) => ({ ...assignment, eta: "2026-11-02T15:00:00Z" })),
+      penaltyPaise: "150000", demurragePaise: "24000", netPaymentPaise: "2326000",
+      history: [
+        { action: "DeliveryConfirmed", actor: `0x${"2".repeat(40)}`, timestamp: "2026-11-02T07:00:00Z", dataHash: `0x${"e".repeat(64)}`, details: { timestamp: "2026-11-02T07:00:00Z" } },
+        { action: "PenaltyCalculated", actor: `0x${"1".repeat(40)}`, timestamp: "2026-11-02T07:00:01Z", dataHash: `0x${"f".repeat(64)}`, details: { penaltyPaise: "150000", secondsLate: "46800" } },
+        { action: "DemurrageCalculated", actor: `0x${"1".repeat(40)}`, timestamp: "2026-11-02T07:00:02Z", dataHash: `0x${"a".repeat(64)}`, details: { demurragePaise: "24000", heldSeconds: "36000" } },
+      ],
+    });
+    mount("/contracts/2045", "Shipper");
+    expect(await screen.findByText("Delivered after SLA")).toBeInTheDocument();
+    expect(screen.getByText("3 blocks × 200 BPS per 6-hour block")).toBeInTheDocument();
+    expect(screen.getByText("12 wagons × 4 billable hours × ₹5.00 per wagon-hour")).toBeInTheDocument();
+    expect(screen.getAllByText("₹25,000.00")).toHaveLength(2);
+    expect(screen.getByText("₹1,500.00")).toBeInTheDocument();
+    expect(screen.getByText("₹240.00")).toBeInTheDocument();
+    expect(screen.getByText("₹23,260.00")).toBeInTheDocument();
+    expect(screen.getByText(/does not calculate settlement money/)).toBeInTheDocument();
+  });
+
   it("renders an ownership-safe not-found message for an inaccessible detail", async () => {
     vi.mocked(getContract).mockRejectedValue(new ApiError(404, { code: "NOT_FOUND", message: "Contract was not found." }));
     mount("/contracts/9999", "Shipper");
