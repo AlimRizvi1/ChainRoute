@@ -144,7 +144,8 @@ services:
 
   dashboard:
     build:
-      context: dashboard
+      context: .
+      dockerfile: dashboard/Dockerfile
       args:
         VITE_API_TARGET: http://backend:8080
     environment:

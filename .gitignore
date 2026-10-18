@@ -6,7 +6,15 @@
 # Node.js
 node_modules/
 backend/dist/
+dashboard/dist/
+dashboard/tsconfig.tsbuildinfo
 coverage/
+
+# Local Impeccable rounds; keep the committed surface brief only.
+.impeccable/*
+!.impeccable/surfaces/
+.impeccable/surfaces/*
+!.impeccable/surfaces/dashboard-src-main-tsx.md
 
 # Python
 __pycache__/
