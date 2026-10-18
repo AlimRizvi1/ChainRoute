@@ -28,6 +28,13 @@ function mount(path: string, role: "Shipper" | "Carrier" | "Administrator" | "Au
 
 afterEach(() => { cleanup(); vi.clearAllMocks(); sessionStorage.clear(); });
 
+function stubDownloads() {
+  const original = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
+  const createObjectURL = vi.fn(() => "blob:chainroute-test");
+  Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+  return { createObjectURL, restore: () => original ? Object.defineProperty(URL, "createObjectURL", original) : Reflect.deleteProperty(URL, "createObjectURL") };
+}
+
 describe("contract ledger", () => {
   it("searches a long ledger and filters by lifecycle state", async () => {
     vi.mocked(listContracts).mockResolvedValue({ items: contracts, nextCursor: null });
@@ -97,6 +104,17 @@ describe("contract ledger", () => {
     expect(screen.getByText("₹240.00")).toBeInTheDocument();
     expect(screen.getByText("₹23,260.00")).toBeInTheDocument();
     expect(screen.getByText(/does not calculate settlement money/)).toBeInTheDocument();
+  });
+
+  it("exports settlement rows only after the exact amounts have loaded", async () => {
+    const downloads = stubDownloads();
+    vi.mocked(getContract).mockResolvedValue({ ...detail, state: "PenaltyCalculated" });
+    mount("/contracts/2045", "Shipper");
+    const exportButton = await screen.findByRole("button", { name: "Export settlement CSV" });
+    expect(exportButton).toBeEnabled();
+    fireEvent.click(exportButton);
+    expect(downloads.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    downloads.restore();
   });
 
   it("renders an ownership-safe not-found message for an inaccessible detail", async () => {

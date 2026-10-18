@@ -3,7 +3,7 @@ import { clearSession, readSession } from "../auth/session";
 import { mockRequest } from "../mocks/mockApi";
 
 export const API_MODE = import.meta.env.VITE_API_MODE === "mock" ? "mock" : "real";
-const API_ROOT = import.meta.env.VITE_API_ROOT || "/api";
+export const API_ROOT = import.meta.env.VITE_API_ROOT || "/api";
 
 export type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;

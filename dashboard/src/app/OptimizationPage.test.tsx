@@ -29,6 +29,13 @@ function mount() {
 
 afterEach(() => { cleanup(); vi.clearAllMocks(); sessionStorage.clear(); });
 
+function stubDownloads() {
+  const original = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
+  const createObjectURL = vi.fn(() => "blob:chainroute-test");
+  Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+  return { createObjectURL, restore: () => original ? Object.defineProperty(URL, "createObjectURL", original) : Reflect.deleteProperty(URL, "createObjectURL") };
+}
+
 describe("optimization workshop", () => {
   it("normalizes live weights, runs a what-if, and compares its results", async () => {
     vi.mocked(runOptimization).mockResolvedValueOnce(plan("plan-1", 0.65, "390000")).mockResolvedValueOnce(plan("plan-2", 0.83, "450000"));
@@ -53,6 +60,17 @@ describe("optimization workshop", () => {
     fireEvent.click(screen.getByRole("button", { name: /Run allocation/ }));
     expect(await screen.findByText("Available wagons do not have enough capacity.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ranked alternatives" })).toBeInTheDocument();
+  });
+
+  it("downloads a CSV for the currently displayed plan", async () => {
+    const downloads = stubDownloads();
+    vi.mocked(runOptimization).mockResolvedValue(plan("plan-export", 0.7, "400000"));
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: /Run allocation/ }));
+    await screen.findByRole("heading", { name: "A route worth taking." });
+    fireEvent.click(screen.getByRole("button", { name: "Export plan CSV" }));
+    expect(downloads.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    downloads.restore();
   });
 
   it("submits an order and keeps the run action single-flight", async () => {

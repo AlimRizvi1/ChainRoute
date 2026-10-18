@@ -10,6 +10,7 @@ import { BackendUnavailable, HealthBanner, useServiceHealth } from "../component
 import { OverviewPage } from "./OverviewPage";
 import { OptimizationPage } from "./OptimizationPage";
 import { ContractsPage } from "./ContractsPage";
+import { useLiveContractAlerts } from "./useLiveContractAlerts";
 
 const DEMO_USERS = [
   { username: "demo.shipper", role: "Shipper" },
@@ -58,6 +59,7 @@ function WorkspaceShell() {
   const { session, signOut } = useAuth();
   const navigate = useNavigate();
   const { health, unavailable, checking, refresh } = useServiceHealth();
+  const { connection, alert, dismissAlert } = useLiveContractAlerts(session!);
   if (!session) return <LoadingState label="Returning to sign in…" />;
   const navigation = navigationForRole(session.user.role);
   return (
@@ -81,8 +83,10 @@ function WorkspaceShell() {
         <header className="workspace-topbar">
           <span>Freight allocation and settlement</span>
           {API_MODE === "mock" && <span className="sample-data-label">SAMPLE DATA</span>}
+          <span className={`push-status push-${connection}`} role="status"><i aria-hidden="true" />{connection === "connected" ? "Live alerts" : connection === "sample" ? "Sample alerts · 15s refresh" : connection === "offline" ? "Alerts offline" : connection === "reconnecting" ? "Reconnecting alerts" : "Connecting alerts"}</span>
           <button className="sign-out" onClick={() => { signOut(); navigate("/login", { replace: true }); }} type="button">Sign out</button>
         </header>
+        {alert && <aside className="live-alert-toast" role="status" aria-live="polite" aria-label="New contract alert"><span className="live-alert-mark" aria-hidden="true">!</span><div><strong>{alert.title}</strong><p>{alert.message}</p></div><Link to={`/contracts/${encodeURIComponent(alert.contractId)}`}>Review</Link><button type="button" aria-label="Dismiss alert" onClick={dismissAlert}>×</button></aside>}
         <main className="workspace-content">
           {unavailable ? (
             <BackendUnavailable retry={() => void refresh()} checking={checking} />

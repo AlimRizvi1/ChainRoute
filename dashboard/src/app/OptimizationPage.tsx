@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { acceptPlan, createOrder, runOptimization, type AcceptInput, type AllocationPlan, type OrderInput, type Weights } from "../api/optimization";
 import { ApiError } from "../api/errors";
+import { downloadCsv, planCsv, safeCsvFilename } from "../api/csv";
 import { useAuth } from "../auth/context";
 import { ErrorState, LoadingState } from "../components/StatePanel";
 
@@ -163,7 +164,7 @@ export function OptimizationPage() {
       {emptyMessage && <div className="optimization-empty" role="status"><strong>No pending orders reached the optimizer.</strong><p>{emptyMessage}</p><span>Orders already submitted remain available in your order queue.</span></div>}
     </section>
 
-    {plan && <PlanResult plan={plan} previous={previous} carrierAddress={carrierAddress} setCarrierAddress={setCarrierAddress} freightRupees={freightRupees} setFreightRupees={setFreightRupees} penaltyBps={penaltyBps} setPenaltyBps={setPenaltyBps} penaltySeconds={penaltySeconds} setPenaltySeconds={setPenaltySeconds} freeHoldingHours={freeHoldingHours} setFreeHoldingHours={setFreeHoldingHours} demurragePaise={demurragePaise} setDemurragePaise={setDemurragePaise} wagonCount={wagonCount} onAccept={() => void accept()} accepting={accepting} acceptanceNotice={acceptanceNotice} acceptanceQueued={acceptanceQueued} />}
+    {plan && <PlanResult plan={plan} previous={previous} exportingDisabled={busy} carrierAddress={carrierAddress} setCarrierAddress={setCarrierAddress} freightRupees={freightRupees} setFreightRupees={setFreightRupees} penaltyBps={penaltyBps} setPenaltyBps={setPenaltyBps} penaltySeconds={penaltySeconds} setPenaltySeconds={setPenaltySeconds} freeHoldingHours={freeHoldingHours} setFreeHoldingHours={setFreeHoldingHours} demurragePaise={demurragePaise} setDemurragePaise={setDemurragePaise} wagonCount={wagonCount} onAccept={() => void accept()} accepting={accepting} acceptanceNotice={acceptanceNotice} acceptanceQueued={acceptanceQueued} />}
     {busy && !plan && <div className="optimization-first-run"><LoadingState label="Finding a route through the yard…" /></div>}
   </section>;
 }
@@ -172,8 +173,8 @@ function WeightControl({ id, label, value, share, onChange, icon }: { id: string
   return <label className="weight-control" htmlFor={`weight-${id}`}><span className="weight-control-top"><span className="weight-icon" aria-hidden="true">{icon}</span><span>{label}</span><strong>{Math.round(share * 100)}<small>%</small></strong></span><input id={`weight-${id}`} aria-label={`${label} weight`} type="range" min="0" max="1" step="0.05" value={value} onChange={(event) => onChange(Number(event.target.value))} /><span className="weight-control-bottom"><small>Influence</small><small>Dial weight {value.toFixed(2)}</small></span></label>;
 }
 
-function PlanResult({ plan, previous, carrierAddress, setCarrierAddress, freightRupees, setFreightRupees, penaltyBps, setPenaltyBps, penaltySeconds, setPenaltySeconds, freeHoldingHours, setFreeHoldingHours, demurragePaise, setDemurragePaise, wagonCount, onAccept, accepting, acceptanceNotice, acceptanceQueued }: {
-  plan: AllocationPlan; previous: AllocationPlan | null; carrierAddress: string; setCarrierAddress: (value: string) => void; freightRupees: string; setFreightRupees: (value: string) => void; penaltyBps: string; setPenaltyBps: (value: string) => void; penaltySeconds: string; setPenaltySeconds: (value: string) => void; freeHoldingHours: string; setFreeHoldingHours: (value: string) => void; demurragePaise: string; setDemurragePaise: (value: string) => void; wagonCount: number; onAccept: () => void; accepting: boolean; acceptanceNotice: string | null; acceptanceQueued: boolean;
+function PlanResult({ plan, previous, exportingDisabled, carrierAddress, setCarrierAddress, freightRupees, setFreightRupees, penaltyBps, setPenaltyBps, penaltySeconds, setPenaltySeconds, freeHoldingHours, setFreeHoldingHours, demurragePaise, setDemurragePaise, wagonCount, onAccept, accepting, acceptanceNotice, acceptanceQueued }: {
+  plan: AllocationPlan; previous: AllocationPlan | null; exportingDisabled: boolean; carrierAddress: string; setCarrierAddress: (value: string) => void; freightRupees: string; setFreightRupees: (value: string) => void; penaltyBps: string; setPenaltyBps: (value: string) => void; penaltySeconds: string; setPenaltySeconds: (value: string) => void; freeHoldingHours: string; setFreeHoldingHours: (value: string) => void; demurragePaise: string; setDemurragePaise: (value: string) => void; wagonCount: number; onAccept: () => void; accepting: boolean; acceptanceNotice: string | null; acceptanceQueued: boolean;
 }) {
   const metrics = plan.metrics;
   const changed = previous ? [
@@ -181,7 +182,7 @@ function PlanResult({ plan, previous, carrierAddress, setCarrierAddress, freight
     { label: "On-time probability", value: formatPercent(metrics.onTimeProbability), before: formatPercent(previous.metrics.onTimeProbability) },
   ] : [];
   return <section className="plan-result" aria-labelledby="plan-result-title">
-    <header className="plan-result-header"><div><p className="eyebrow">03 / THE RESULT · {plan.runMetadata.algorithm}</p><h2 id="plan-result-title">{plan.assignments.length ? "A route worth taking." : "No wagons assigned."}</h2><p>Plan {plan.planId} · {new Date(plan.runMetadata.generatedAt).toLocaleString()} · {plan.runMetadata.durationMs} ms</p></div><span className="plan-score"><small>PLAN SCORE</small><strong>{plan.score.toFixed(2)}</strong></span></header>
+    <header className="plan-result-header"><div><p className="eyebrow">03 / THE RESULT · {plan.runMetadata.algorithm}</p><h2 id="plan-result-title">{plan.assignments.length ? "A route worth taking." : "No wagons assigned."}</h2><p>Plan {plan.planId} · {new Date(plan.runMetadata.generatedAt).toLocaleString()} · {plan.runMetadata.durationMs} ms</p></div><div className="plan-result-tools"><span className="plan-score"><small>PLAN SCORE</small><strong>{plan.score.toFixed(2)}</strong></span><button className="plan-export-button" type="button" disabled={exportingDisabled || plan.assignments.length === 0} onClick={() => downloadCsv(safeCsvFilename(plan.planId, "plan"), planCsv(plan))}>Export plan CSV</button></div></header>
     <div className="plan-kpis" aria-label="Plan performance metrics">
       <Metric label="Wagon utilization" value={`${metrics.utilizationPercent.toFixed(1)}%`} mark="▤" />
       <Metric label="Estimated cost" value={formatRupees(metrics.estimatedCostPaise)} mark="₹" />

@@ -36,6 +36,12 @@ export function OverviewPage() {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
+  useEffect(() => {
+    const handleContractEvent = () => void refresh(true);
+    window.addEventListener("chainroute:contract-event", handleContractEvent);
+    return () => window.removeEventListener("chainroute:contract-event", handleContractEvent);
+  }, [refresh]);
+
   if (loading && !data) return <LoadingState label="Bringing the network into view…" />;
   if (fatalError && !data) return <ErrorState title="Overview unavailable" action={<button className="secondary-button" onClick={() => void refresh()} type="button">Try again</button>}><p>{fatalError}</p></ErrorState>;
   if (!data || !role) return null;

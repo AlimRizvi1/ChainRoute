@@ -51,6 +51,20 @@ a { color: inherit; text-underline-offset: 3px; }
 .account-mark { display: grid; width: 31px; height: 31px; flex: 0 0 31px; place-items: center; border: 1px solid #ffffff73; border-radius: 50%; color: var(--sun); font-size: 12px; font-weight: 800; }
 .workspace-body { min-width: 0; min-height: 100vh; }
 .workspace-topbar { position: sticky; z-index: 5; top: 0; display: flex; align-items: center; justify-content: flex-end; gap: 15px; min-height: 68px; padding: 0 clamp(18px, 3vw, 42px); border-bottom: 1px solid var(--rule); background: color-mix(in srgb, var(--paper), white 34%); color: var(--ink-soft); font-size: 11px; }
+.push-status { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 9px; border: 1px solid var(--rule); color: var(--ink-soft); font-size: 10px; font-weight: 750; white-space: nowrap; }
+.push-status i { width: 7px; height: 7px; border-radius: 50%; background: #8e8a7e; }
+.push-connected i { background: #397655; box-shadow: 0 0 0 3px #3976551c; }
+.push-reconnecting i, .push-connecting i { background: var(--sun); animation: push-pulse 1.3s ease-in-out infinite alternate; }
+.push-sample i { background: var(--tomato); }
+.live-alert-toast { position: fixed; z-index: 12; top: 78px; right: clamp(14px, 3vw, 38px); display: grid; grid-template-columns: 30px minmax(0, 1fr) auto 28px; align-items: center; gap: 11px; width: min(520px, calc(100vw - 28px)); padding: 13px; border: 1px solid #c9bda9; background: var(--surface); color: var(--navy); box-shadow: 0 12px 34px #18261f24; animation: alert-arrive .35s cubic-bezier(.16, 1, .3, 1) both; }
+.live-alert-mark { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: #fae4dc; color: var(--danger); font-size: 14px; font-weight: 900; }
+.live-alert-toast > div { min-width: 0; }
+.live-alert-toast strong { font-size: 12px; }
+.live-alert-toast p { margin: 3px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.4; }
+.live-alert-toast > a { color: var(--navy); font-size: 11px; font-weight: 850; text-underline-offset: 3px; }
+.live-alert-toast > button { width: 40px; height: 40px; border: 1px solid var(--rule); background: transparent; color: var(--navy); cursor: pointer; font-size: 18px; }
+@keyframes alert-arrive { from { transform: translateY(-8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes push-pulse { from { opacity: .55; } to { opacity: 1; } }
 .sample-data-label { display: inline-flex; align-items: center; min-height: 25px; padding: 0 9px; border: 1px solid color-mix(in srgb, var(--sun), var(--navy) 12%); border-radius: 99px; background: var(--sun); color: var(--navy); font-size: 9px; font-weight: 850; letter-spacing: .075em; text-transform: uppercase; }
 .sign-out { min-height: 36px; padding: 0 12px; border: 1px solid #c9bda9; border-radius: 4px; background: transparent; color: var(--navy); cursor: pointer; font-size: 11px; font-weight: 750; transition: background-color .18s ease, border-color .18s ease, transform .18s ease; }
 .sign-out:hover { border-color: var(--tomato); background: #f8f6ef; transform: translateY(-1px); }
@@ -242,7 +256,8 @@ a { color: inherit; text-underline-offset: 3px; }
   .workspace-nav a { flex: 0 0 auto; min-height: 35px; gap: 7px; padding: 0 9px; font-size: 10px; }
   .nav-icon { width: 14px; height: 14px; flex-basis: 14px; }
   .workspace-topbar { min-height: 54px; justify-content: space-between; gap: 8px; padding-inline: 13px; font-size: 9px; }
-  .workspace-topbar > span:first-child { max-width: 28vw; line-height: 1.3; }
+  .workspace-topbar > span:first-child { max-width: 21vw; line-height: 1.3; }
+  .push-status { max-width: 102px; min-height: 29px; padding-inline: 6px; overflow: hidden; font-size: 8px; text-overflow: ellipsis; }
   .sample-data-label { min-height: 23px; padding: 0 7px; font-size: 8px; }
   .sign-out { min-height: 33px; padding-inline: 9px; font-size: 10px; }
   .workspace-content { padding: 24px 16px 36px; }
@@ -261,7 +276,8 @@ a { color: inherit; text-underline-offset: 3px; }
   .login-screen { place-items: center; padding: 16px; }
 }
 @media (max-width: 380px) {
-  .workspace-topbar > span:first-child { max-width: 23vw; }
+  .workspace-topbar > span:first-child { max-width: 19vw; }
+  .push-status { max-width: 92px; }
   .workspace-nav a { gap: 5px; padding-inline: 7px; }
   .workspace-content { padding-inline: 13px; }
   .overview-kpis { gap: 8px; }
@@ -325,6 +341,10 @@ a { color: inherit; text-underline-offset: 3px; }
 .plan-result-header .eyebrow { color: #e2b858; }
 .plan-result-header h2 { margin: 7px 0 5px; font-family: Impact, "Arial Narrow", sans-serif; font-size: clamp(26px, 4vw, 42px); font-weight: 500; letter-spacing: .01em; }
 .plan-result-header p { margin: 0; color: #d1d6cc; font-size: 10px; }
+.plan-result-tools { display: flex; align-items: center; gap: 16px; }
+.plan-export-button { min-height: 44px; padding: 0 12px; border: 1px solid #ffffff85; background: transparent; color: var(--surface); cursor: pointer; font-size: 10px; font-weight: 800; transition: background-color .18s ease, transform .18s ease; }
+.plan-export-button:hover:not(:disabled) { transform: translateY(-2px); background: #ffffff17; }
+.plan-export-button:disabled { cursor: not-allowed; opacity: .55; }
 .plan-score { display: grid; flex: 0 0 auto; gap: 4px; min-width: 83px; padding: 12px; border: 1px solid #ffffff3b; text-align: right; }
 .plan-score small { color: #e2b858; font-size: 8px; font-weight: 900; letter-spacing: .1em; }
 .plan-score strong { font-family: Impact, "Arial Narrow", sans-serif; font-size: 27px; font-weight: 500; }
@@ -448,6 +468,9 @@ a { color: inherit; text-underline-offset: 3px; }
 .contract-detail-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); align-items: start; gap: 12px; }
 .contract-terms-panel, .contract-actions-panel, .contract-history-panel, .contract-assignment-panel, .contract-settlement-panel { min-width: 0; }
 .contract-terms-panel .panel-heading, .contract-actions-panel .panel-heading, .contract-history-panel .panel-heading, .contract-assignment-panel .panel-heading, .contract-settlement-panel .panel-heading { margin-bottom: 15px; }
+.settlement-tools { display: flex; align-items: center; gap: 10px; }
+.settlement-export-button { min-height: 44px; white-space: nowrap; }
+.settlement-export-button:disabled { cursor: not-allowed; opacity: .55; }
 .contract-detail-grid .panel-heading h2 { margin: 4px 0 0; color: var(--ink); font-family: Impact, "Arial Narrow", sans-serif; font-size: 22px; font-weight: 500; }
 .contract-parties { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; margin-bottom: 12px; padding: 13px; border: 1px solid #e2d9c8; background: #f4f0e6; }
 .contract-parties div { display: grid; min-width: 0; gap: 4px; }
@@ -582,6 +605,8 @@ a { color: inherit; text-underline-offset: 3px; }
   .optimization-run-row { align-items: stretch; flex-direction: column; }
   .optimization-run-row .run-button { width: 100%; }
   .plan-result-header { align-items: start; }
+  .plan-result-tools { align-items: end; flex-direction: column; gap: 10px; }
+  .settlement-tools { align-items: end; flex-direction: column; }
   .plan-score { min-width: 72px; padding: 8px; }
   .plan-score strong { font-size: 22px; }
   .plan-kpis { gap: 7px; }

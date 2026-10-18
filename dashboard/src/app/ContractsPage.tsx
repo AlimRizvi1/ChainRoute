@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { Link, useNavigate, useParams } from "react-router";
 import { CONTRACT_STATES, getContract, listContracts, performContractAction, type ContractAction, type ContractDetail, type ContractState, type ContractSummary, type QueuedContractAction } from "../api/contracts";
 import { ApiError } from "../api/errors";
+import { downloadCsv, safeCsvFilename, settlementCsv } from "../api/csv";
 import { useAuth } from "../auth/context";
 import { hasPermission, isRole, type Role } from "../auth/roles";
 import { EmptyState, ErrorState, LoadingState } from "../components/StatePanel";
@@ -43,6 +44,11 @@ function ContractListPage({ role }: { role?: string }) {
   }, [cursor, stateFilter]);
 
   useEffect(() => { void load(); }, [stateFilter]);
+  useEffect(() => {
+    const handleContractEvent = () => void load();
+    window.addEventListener("chainroute:contract-event", handleContractEvent);
+    return () => window.removeEventListener("chainroute:contract-event", handleContractEvent);
+  }, [load]);
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return contracts;
@@ -97,6 +103,14 @@ function ContractDetailPage({ contractId, role }: { contractId: string; role?: s
     } finally { setLoading(false); }
   }, [contractId]);
   useEffect(() => { void refresh(); setAction(null); setActionNotice(null); idempotencyKeys.current.clear(); }, [refresh]);
+  useEffect(() => {
+    const handleContractEvent = (event: Event) => {
+      const contractEvent = (event as CustomEvent<{ contractId?: string }>).detail;
+      if (contractEvent?.contractId === contractId) void refresh();
+    };
+    window.addEventListener("chainroute:contract-event", handleContractEvent);
+    return () => window.removeEventListener("chainroute:contract-event", handleContractEvent);
+  }, [contractId, refresh]);
 
   async function submitAction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -208,9 +222,10 @@ function SettlementBreakdown({ detail, history, redacted }: { detail: ContractDe
   const billableHours = heldSeconds === null ? null : heldSeconds <= freeSeconds ? 0n : (heldSeconds - freeSeconds + 3599n) / 3600n;
   const computed = ["Delivered", "PenaltyCalculated", "PaymentReleased", "Closed", "Disputed"].includes(detail.state);
   const onHold = detail.state === "Disputed";
+  const canExport = computed && /^\d+$/.test(detail.terms?.freightValuePaise ?? "") && /^\d+$/.test(detail.penaltyPaise ?? "") && /^\d+$/.test(detail.demurragePaise ?? "") && /^\d+$/.test(detail.netPaymentPaise ?? "");
   const capped = Boolean(detail.terms?.freightValuePaise && detail.penaltyPaise && /^\d+$/.test(detail.penaltyPaise) && detail.penaltyPaise === detail.terms.freightValuePaise && BigInt(detail.penaltyPaise) > 0n);
   return <section className="optimization-panel contract-settlement-panel" aria-labelledby="settlement-title">
-    <div className="panel-heading"><div><p className="eyebrow">SETTLEMENT / INR PAISE SOURCE</p><h2 id="settlement-title">Settlement breakdown</h2></div><span className={`settlement-state${onHold ? " is-hold" : ""}`}>{onHold ? "On hold · dispute" : computed ? detail.state === "PaymentReleased" || detail.state === "Closed" ? "Accounting release recorded" : "Calculation recorded" : "Awaiting delivery"}</span></div>
+    <div className="panel-heading"><div><p className="eyebrow">SETTLEMENT / INR PAISE SOURCE</p><h2 id="settlement-title">Settlement breakdown</h2></div><div className="settlement-tools"><span className={`settlement-state${onHold ? " is-hold" : ""}`}>{onHold ? "On hold · dispute" : computed ? detail.state === "PaymentReleased" || detail.state === "Closed" ? "Accounting release recorded" : "Calculation recorded" : "Awaiting delivery"}</span>{!redacted && <button className="secondary-button settlement-export-button" type="button" disabled={!canExport} onClick={() => downloadCsv(safeCsvFilename(detail.contractId, "settlement"), settlementCsv(detail))}>Export settlement CSV</button>}</div></div>
     {redacted ? <p className="redacted-inline">Commercial terms and settlement amounts are hidden for Administrator and Auditor views.</p> : <>
       {onHold && <p className="settlement-hold" role="status">A dispute is open. The recorded settlement remains on hold until it is resolved.</p>}
       {!computed && <p className="settlement-pending">The contract has not recorded a delivery calculation. Freight and deduction amounts will appear here when the backend reports them.</p>}

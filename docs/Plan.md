@@ -1540,6 +1540,10 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 **Acceptance Criteria**
 - [ ] A person who has not seen the application before can complete an order-to-plan flow after only a short walkthrough, satisfying the SRS Usability NFR.
 - [ ] Track 3 is considered feature-complete across both the backend API and the dashboard.
+- [x] Authenticated dashboard clients receive party-only live contract events, recover from a dropped connection, and refresh the affected view; alerts name disputes, late settlement, and shipment risk in text.
+- [x] Plan and settlement CSV actions export only loaded data; automated tests cover CSV encoding, formula safety, exact paise values, and event classification.
+- [ ] Visually verify the overview, allocations, contracts, and tracking screens at 375px, 768px, and 1280px, including keyboard and accessibility review.
+- [ ] Complete the order-to-plan walkthrough with someone unfamiliar with the application.
 
 ---
 
