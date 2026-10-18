@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams } from "react-router";
 import { API_MODE } from "../api/client";
 import { ApiError } from "../api/errors";
 import { useAuth } from "../auth/context";
@@ -8,6 +8,7 @@ import { LoadingState } from "../components/StatePanel";
 import { RouteTransition } from "../components/RouteTransition";
 import { BackendUnavailable, HealthBanner, useServiceHealth } from "../components/ServiceStatus";
 import { OverviewPage } from "./OverviewPage";
+import { OptimizationPage } from "./OptimizationPage";
 
 const DEMO_USERS = [
   { username: "demo.shipper", role: "Shipper" },
@@ -26,8 +27,9 @@ export function AppRoutes() {
           <Route index element={<Navigate to="/overview" replace />} />
           <Route path="overview" element={<OverviewPage />} />
           <Route path="orders" element={<PermissionPage path="/orders" title="Freight orders" />} />
-          <Route path="allocations" element={<PermissionPage path="/allocations" title="Allocations" />} />
+          <Route path="allocations" element={<PermissionPage path="/allocations" title="Allocations"><OptimizationPage /></PermissionPage>} />
           <Route path="contracts" element={<PermissionPage path="/contracts" title="Contracts" />} />
+          <Route path="contracts/:contractId" element={<PermissionPage path="/contracts" title="Contracts"><AcceptedContractPage /></PermissionPage>} />
           <Route path="audit" element={<PermissionPage path="/audit" title="Audit trail" />} />
           <Route path="admin" element={<PermissionPage path="/admin" title="Administration" />} />
           <Route path="*" element={<Navigate to="/overview" replace />} />
@@ -152,10 +154,10 @@ function LoginPage() {
   );
 }
 
-function PermissionPage({ path, title }: { path: string; title: string }) {
+function PermissionPage({ path, title, children }: { path: string; title: string; children?: ReactNode }) {
   const { session } = useAuth();
   if (!session || !canVisit(session.user.role, path)) return <Navigate to="/overview" replace />;
-  return <FoundationPage title={title} description={`The ${session.user.role} workspace is ready for the ${title.toLowerCase()} workflow.`} />;
+  return children ?? <FoundationPage title={title} description={`The ${session.user.role} workspace is ready for the ${title.toLowerCase()} workflow.`} />;
 }
 
 function FoundationPage({ title, description }: { title: string; description: string }) {
@@ -166,6 +168,13 @@ function FoundationPage({ title, description }: { title: string; description: st
       <div className="foundation-note"><strong>Screen foundation</strong><span>Shared navigation, role access, and session handling are ready for this workflow.</span></div>
     </section>
   );
+}
+
+function AcceptedContractPage() {
+  const { contractId } = useParams();
+  const location = useLocation();
+  const acceptance = (location.state as { acceptance?: { planId?: string; state?: string; agreementHash?: string } } | null)?.acceptance;
+  return <section className="accepted-contract-page"><p className="eyebrow"><span className="eyebrow-mark" /> AGREEMENT / CREATED</p><span className="accepted-contract-stamp" aria-hidden="true">✓</span><h1>Contract {contractId}</h1><p>The accepted allocation is now recorded as a Track 2 agreement.</p><dl><div><dt>Lifecycle state</dt><dd>{acceptance?.state ?? "Created"}</dd></div><div><dt>Allocation plan</dt><dd>{acceptance?.planId ?? "Open from contracts"}</dd></div>{acceptance?.agreementHash && <div><dt>Agreement hash</dt><dd className="hash-value">{acceptance.agreementHash}</dd></div>}</dl><Link className="primary-button accepted-next" to="/contracts">Go to contracts <span aria-hidden="true">↗</span></Link><p className="accept-footnote">The full state timeline and event log are available in the Contracts workflow.</p></section>;
 }
 
 function NavIcon({ path }: { path: string }) {

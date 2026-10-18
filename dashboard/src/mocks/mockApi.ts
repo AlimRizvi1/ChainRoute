@@ -10,6 +10,8 @@ const demoRoles: Record<string, Role> = {
   "demo.administrator": "Administrator",
   "demo.auditor": "Auditor",
 };
+let mockRunNumber = 0;
+let mockOrderNumber = 0;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -71,6 +73,33 @@ export async function mockRequest(path: string, request: MockRequest): Promise<R
   }
   if (cleanPath === "/orders" && request.method === "GET") {
     return json({ items: plentifulDataset.orders, nextCursor: null, sampleData: true });
+  }
+  if (cleanPath === "/orders" && request.method === "POST") {
+    mockOrderNumber += 1;
+    return json({ orderId: `ORD-MOCK-${String(mockOrderNumber).padStart(3, "0")}`, status: "Pending" }, 201);
+  }
+  if (cleanPath === "/optimizations/run" && request.method === "POST") {
+    mockRunNumber += 1;
+    const input = request.body as { weights?: { onTime?: number; cost?: number; utilization?: number } } | undefined;
+    const weights = input?.weights ?? { onTime: 0.5, cost: 0.3, utilization: 0.2 };
+    const total = (weights.onTime ?? 0) + (weights.cost ?? 0) + (weights.utilization ?? 0) || 1;
+    const normalized = { onTime: (weights.onTime ?? 0) / total, cost: (weights.cost ?? 0) / total, utilization: (weights.utilization ?? 0) / total };
+    const plan = structuredClone(allocationPlan) as typeof allocationPlan & { metrics: { utilizationPercent: number; estimatedCostPaise: string; distanceKm: number; onTimeProbability: number }; runMetadata: { generatedAt: string; durationMs: number; algorithm: string; weights: typeof normalized; inputHash: string }; planId: string; runId: string };
+    plan.planId = `plan-mock-${String(mockRunNumber).padStart(4, "0")}`;
+    plan.runId = `run-mock-${String(mockRunNumber).padStart(4, "0")}`;
+    plan.runMetadata = { ...plan.runMetadata, generatedAt: new Date().toISOString(), durationMs: 720 + mockRunNumber * 31, weights: normalized, algorithm: "yard-demo-v1", inputHash: `sha256:${"a".repeat(64)}` };
+    plan.metrics = {
+      utilizationPercent: Math.round(62 + normalized.utilization * 35),
+      estimatedCostPaise: String(Math.round(530000 - normalized.cost * 220000)),
+      distanceKm: Math.round(1100 - normalized.cost * 200),
+      onTimeProbability: Number((0.52 + normalized.onTime * 0.42).toFixed(3)),
+    };
+    return json({ ...plan, sampleData: true });
+  }
+  if (/^\/plans\/[^/]+\/accept$/.test(cleanPath) && request.method === "POST") {
+    const planId = cleanPath.split("/")[2];
+    const contractNumber = Math.max(mockRunNumber, 1);
+    return json({ contractId: String(3000 + contractNumber), planId, state: "Created", agreementHash: `0x${"b".repeat(64)}` });
   }
   if (cleanPath === "/plans/demo" && request.method === "GET") {
     return json({ ...allocationPlan, sampleData: true });

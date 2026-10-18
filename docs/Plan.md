@@ -1398,6 +1398,8 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 
 **Expected Input / Output.** Input: weight values and a Run action; subsequently, an Accept action on a displayed plan. Output: a rendered plan with metrics; on accept, navigation to the new contract's detail view.
 
+**Decisions.** Resolved in [decision 26](decisions.md): show normalized shares from the three dials, retain each run as a separate plan, compare cost and on-time probability, keep order entry available during optimizer outages, and use the existing idempotent accept endpoint with plan-derived wagon count.
+
 **Test Cases**
 
 | Test Case | Input | Expected Result |
@@ -1417,8 +1419,8 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 - Accept clicked twice in quick succession — must not create two contracts (this should already be prevented at the backend per Phase 18, but the UI should also disable the control after the first click).
 
 **Acceptance Criteria**
-- [ ] The full flow — submit an order, run, what-if, accept — works end to end against the real backend and Track 1.
-- [ ] Two clearly different weightings produce visibly different results on the demo dataset.
+- [ ] The full flow — submit an order, run, what-if, accept — is visually verified end to end against the real backend, Track 1, and configured Track 2 signer.
+- [x] Two clearly different weightings produce visibly different results in the interactive demo.
 
 ---
 
