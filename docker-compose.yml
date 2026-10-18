@@ -110,6 +110,9 @@ services:
       DEMO_USER_PASSWORD: "${DEMO_USER_PASSWORD:-}"
       AI_ENGINE_URL: http://ai-engine:8000
       CHAIN_RPC_URL: http://blockchain:8545
+      CHAIN_OPERATOR_PRIVATE_KEY: "${CHAIN_OPERATOR_PRIVATE_KEY:-}"
+      CHAIN_SHIPPER_PRIVATE_KEY: "${CHAIN_SHIPPER_PRIVATE_KEY:-}"
+      CHAIN_CARRIER_PRIVATE_KEY: "${CHAIN_CARRIER_PRIVATE_KEY:-}"
       DATABASE_URL: "postgresql://${POSTGRES_USER:-chainroute}:${POSTGRES_PASSWORD:-chainroute-local}@database:5432/${POSTGRES_DB:-chainroute}"
       MASTER_DATA_SEED_PATH: /samples/plentiful-dataset.json
       CONTRACT_FILE: /shared/contract.json

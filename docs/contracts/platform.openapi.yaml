@@ -410,6 +410,61 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /contracts/{contractId}/release-payment:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    post:
+      tags: [Contracts]
+      summary: Record accounting settlement after the dispute window
+      description: "Allowed: Administrator acting as the configured operator. The contract records integer paise values and transfers no assets."
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Payment accounting recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [contractId, state, netPaymentPaise, transactionHash]
+                properties:
+                  contractId: { type: string, pattern: "^[1-9][0-9]*$" }
+                  state: { const: PaymentReleased }
+                  netPaymentPaise: { type: string, pattern: "^[0-9]+$" }
+                  transactionHash: { type: string, pattern: "^0x[0-9a-fA-F]{64}$" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /contracts/{contractId}/close:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    post:
+      tags: [Contracts]
+      summary: Close a released contract
+      description: "Allowed: Administrator acting as the configured operator. The contract must have released payment."
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Contract closed.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [contractId, state, transactionHash]
+                properties:
+                  contractId: { type: string, pattern: "^[1-9][0-9]*$" }
+                  state: { const: Closed }
+                  transactionHash: { type: string, pattern: "^0x[0-9a-fA-F]{64}$" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /dashboard/summary:
     get:
       tags: [Dashboard]

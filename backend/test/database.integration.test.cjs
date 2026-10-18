@@ -35,6 +35,7 @@ test(
     assert.deepEqual(firstApply, [
       "001_track3_platform_schema.sql",
       "002_authentication_audit.sql",
+      "003_contract_operations.sql",
     ]);
     assert.deepEqual(await runMigrations(pool), []);
 

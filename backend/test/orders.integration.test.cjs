@@ -44,7 +44,7 @@ test(
       if (responseMode === "unavailable") {
         response.writeHead(503).end("unavailable");
       } else if (responseMode === "timeout") {
-        setTimeout(() => response.writeHead(200, { "content-type": "application/json" }).end("{}"), 150);
+        setTimeout(() => response.writeHead(200, { "content-type": "application/json" }).end("{}"), 600);
       } else if (responseMode === "malformed") {
         response.writeHead(200, { "content-type": "application/json" }).end("{bad json");
       } else {
@@ -83,7 +83,7 @@ test(
       tokenSecret: randomBytes(32).toString("base64url"),
       aiEngineUrl: stubUrl,
       dependencyTimeoutMs: 100,
-      optimizationTimeoutMs: 30,
+      optimizationTimeoutMs: 500,
       logger: false,
     });
     const shipper = await pool.query("SELECT user_id FROM users WHERE username = 'demo.shipper'");

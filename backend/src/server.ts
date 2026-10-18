@@ -37,6 +37,8 @@ async function start(): Promise<void> {
     database,
     tokenSecret: getTokenSecret(),
     dependencyTimeoutMs,
+    chainRpcUrl: process.env.CHAIN_RPC_URL,
+    contractPath: process.env.CONTRACT_FILE,
     logLevel: process.env.LOG_LEVEL,
   });
 

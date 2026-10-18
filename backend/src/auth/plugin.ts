@@ -77,16 +77,21 @@ export async function registerAuthentication(
 
     const action = request.routeOptions.config.auditAction ??
       `${request.method} ${request.routeOptions.url ?? request.url.split("?")[0]}`;
+    const routeParams = request.params as Record<string, unknown>;
+    const resourceId = ["contractId", "planId", "orderId", "userId", "wagonId", "routeId"]
+      .map((key) => routeParams?.[key])
+      .find((value): value is string => typeof value === "string") ?? null;
     try {
       await database.query(
         `INSERT INTO audit_trail (
            user_id, action, resource_type, resource_id, request_id, outcome, details
-         ) VALUES ($1, $2, $3, NULL, $4, $5, $6::jsonb)
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
          ON CONFLICT (request_id) DO NOTHING`,
         [
           request.actor?.userId ?? null,
           action,
           request.routeOptions.config.auditResourceType ?? null,
+          resourceId,
           request.id,
           reply.statusCode < 400 ? "success" : "failure",
           JSON.stringify({ statusCode: reply.statusCode }),

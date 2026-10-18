@@ -5,6 +5,7 @@ import type { Writable } from "node:stream";
 import type { Pool } from "pg";
 import { registerAuthentication } from "./auth/plugin.js";
 import { registerOrderRoutes } from "./orders/routes.js";
+import { registerContractRoutes } from "./contracts/routes.js";
 
 type DependencyState = "up" | "down";
 type HealthResponse = {
@@ -81,6 +82,7 @@ export async function createPlatformApp(options: PlatformAppOptions) {
     aiEngineUrl,
     options.optimizationTimeoutMs ?? 60_000,
   );
+  await registerContractRoutes(app, database, chainRpcUrl, contractPath);
 
   app.get(
     "/health",
