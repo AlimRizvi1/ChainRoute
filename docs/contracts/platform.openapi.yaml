@@ -865,13 +865,17 @@ components:
     ContractOverview:
       type: object
       additionalProperties: false
-      required: [contractId, planId, state, shipperId, carrierId]
+      required: [contractId, planId, state, shipperId, carrierId, history]
       properties:
         contractId: { type: string, pattern: "^[1-9][0-9]*$" }
         planId: { type: string }
         state: { $ref: "#/components/schemas/ContractState" }
         shipperId: { type: string }
         carrierId: { type: string }
+        history:
+          type: array
+          description: Public lifecycle event metadata; commercial terms, assignments, and financial amounts are omitted for non-parties.
+          items: { $ref: "#/components/schemas/ContractHistoryEntry" }
     QueuedOperation:
       type: object
       additionalProperties: false

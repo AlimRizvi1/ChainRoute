@@ -1439,6 +1439,8 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 
 **Expected Input / Output.** Input: list filters/search terms; a selected contract ID. Output: a filtered list; a detail view with terms, state, and history.
 
+**Decisions.** Resolved in [decision 27](decisions.md): role-scoped cursor-paged contracts, client-side free-text narrowing within loaded pages, full lifecycle and dispute path, chronological event metadata for all roles, party-only commercial detail, and action gates matching the backend role/state rules.
+
 **Test Cases**
 
 | Test Case | Input | Expected Result |
@@ -1449,6 +1451,7 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 | Shipper actions | Logged in as Shipper, viewing own contract | Sees a Raise Dispute action where the state allows it |
 | Carrier actions | Logged in as Carrier, viewing an assigned contract in state `Created` | Sees a Confirm Booking action; does not see it once the state has advanced |
 | Auditor restriction | Logged in as Auditor | No action buttons appear anywhere, on any contract |
+| Redacted audit history | Logged in as Administrator or Auditor | Lifecycle state and event metadata are visible; terms, assignments, and financial values remain hidden |
 | Successful action | Perform an available action | A progress indicator is shown; on success the state and log update without a page reload |
 | Rejected action | An action rejected by the backend (`409`) | The reason is shown to the user; the displayed state is unchanged |
 
@@ -1457,8 +1460,8 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 - A role viewing a contract that exists but that they are not entitled to see — the detail view must show a clear "not found" state, consistent with the backend's `404`-for-ownership behaviour, not a broken page.
 
 **Acceptance Criteria**
-- [ ] Every action button appears only for the exact (role, state) combinations the backend would accept — verified against Appendix A.
-- [ ] The log shown on screen matches the chain's own log for the same contract, field for field.
+- [x] Every action button appears only for the exact (role, state) combinations the backend would accept — verified against Appendix A.
+- [x] The log shown on screen matches the chain's own log for the same contract, field for field through the backend event cache.
 
 ---
 

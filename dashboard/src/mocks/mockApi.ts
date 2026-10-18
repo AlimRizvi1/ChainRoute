@@ -12,6 +12,13 @@ const demoRoles: Record<string, Role> = {
 };
 let mockRunNumber = 0;
 let mockOrderNumber = 0;
+let mockContracts: Array<Record<string, any>> = [
+  { contractId: "2048", planId: "plan-demo-0001", state: "InTransit", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "232600000", slaDeadline: "2026-11-02T18:00:00Z" },
+  { contractId: "2047", planId: "plan-demo-0002", state: "Booked", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "184000000", slaDeadline: "2026-11-04T18:00:00Z" },
+  { contractId: "2046", planId: "plan-demo-0003", state: "Disputed", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "126500000", slaDeadline: "2026-11-05T18:00:00Z" },
+  { contractId: "2045", planId: "plan-demo-0004", state: "Created", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "96500000", slaDeadline: "2026-11-06T18:00:00Z" },
+  { contractId: "2044", planId: "plan-demo-0005", state: "PenaltyCalculated", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "148000000", slaDeadline: "2026-11-01T18:00:00Z" },
+];
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -62,14 +69,35 @@ export async function mockRequest(path: string, request: MockRequest): Promise<R
     });
   }
   if (cleanPath === "/contracts" && request.method === "GET") {
-    const contracts = [
-      { contractId: "CR-2048", planId: "plan-demo-0001", state: "InTransit", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "232600000" },
-      { contractId: "CR-2047", planId: "plan-demo-0002", state: "Booked", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "184000000" },
-      { contractId: "CR-2046", planId: "plan-demo-0003", state: "Disputed", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "126500000" },
-      { contractId: "CR-2045", planId: "plan-demo-0004", state: "Created", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "96500000" },
-      { contractId: "CR-2044", planId: "plan-demo-0005", state: "PenaltyCalculated", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "148000000" },
-    ];
-    return json({ items: contracts, nextCursor: null, sampleData: true });
+    const params = new URLSearchParams(path.split("?")[1] ?? "");
+    const state = params.get("state");
+    const items = state ? mockContracts.filter((contract) => contract.state === state) : mockContracts;
+    return json({ items, nextCursor: null, sampleData: true });
+  }
+  const detailMatch = cleanPath.match(/^\/contracts\/([^/]+)$/);
+  if (detailMatch && request.method === "GET") {
+    const contract = mockContracts.find((entry) => entry.contractId === decodeURIComponent(detailMatch[1]));
+    if (!contract) return error(404, "NOT_FOUND", "Contract was not found.");
+    const roleKey = Object.keys(demoRoles).find((username) => request.token === `mock-${username}`);
+    const role = roleKey ? demoRoles[roleKey] : "Auditor";
+    const history = [{ action: "AgreementCreated", actor: `0x${"1".repeat(40)}`, timestamp: "2026-10-18T08:00:00Z", dataHash: `0x${"c".repeat(64)}` }, { action: contract.state === "InTransit" ? "ShipmentStatusUpdated" : "ContractStateChanged", actor: `0x${"2".repeat(40)}`, timestamp: "2026-10-18T09:00:00Z", dataHash: `0x${"d".repeat(64)}` }];
+    if (role === "Administrator" || role === "Auditor") return json({ contractId: contract.contractId, planId: contract.planId, state: contract.state, shipperId: contract.shipperId, carrierId: contract.carrierId, history, sampleData: true });
+    const payload = allocationPlan as typeof allocationPlan & Record<string, any>;
+    return json({
+      contractId: contract.contractId, planId: contract.planId, state: contract.state, shipperId: contract.shipperId, carrierId: contract.carrierId,
+      terms: { freightValuePaise: contract.freightValuePaise, slaDeadline: contract.slaDeadline, penaltyBpsPerBlock: 100, penaltyBlockSeconds: 3600, freeHoldingHours: 4, demurrageRatePaisePerWagonHour: "5000", wagonCount: 10 },
+      termsHash: `0x${"a".repeat(64)}`, assignments: payload.assignments,
+      penaltyPaise: "150000", demurragePaise: "24000", netPaymentPaise: "2326000",
+      history, sampleData: true,
+    });
+  }
+  const actionMatch = cleanPath.match(/^\/contracts\/([^/]+)\/(confirm-booking|shipment-status|confirm-delivery|dispute|resolve-dispute|release-payment|close)$/);
+  if (actionMatch && request.method === "POST") {
+    const contract = mockContracts.find((entry) => entry.contractId === decodeURIComponent(actionMatch[1]));
+    if (!contract) return error(404, "NOT_FOUND", "Contract was not found.");
+    const nextState: Record<string, string> = { "confirm-booking": "Booked", "shipment-status": "InTransit", "confirm-delivery": "PenaltyCalculated", dispute: "Disputed", "resolve-dispute": "PenaltyCalculated", "release-payment": "PaymentReleased", close: "Closed" };
+    contract.state = nextState[actionMatch[2]];
+    return json({ contractId: contract.contractId, state: contract.state, ...(actionMatch[2] === "confirm-delivery" ? { onTime: false, secondsLate: 3600, penaltyPaise: "150000", demurragePaise: "24000", netPaymentPaise: "2326000" } : {}) });
   }
   if (cleanPath === "/orders" && request.method === "GET") {
     return json({ items: plentifulDataset.orders, nextCursor: null, sampleData: true });
@@ -99,7 +127,9 @@ export async function mockRequest(path: string, request: MockRequest): Promise<R
   if (/^\/plans\/[^/]+\/accept$/.test(cleanPath) && request.method === "POST") {
     const planId = cleanPath.split("/")[2];
     const contractNumber = Math.max(mockRunNumber, 1);
-    return json({ contractId: String(3000 + contractNumber), planId, state: "Created", agreementHash: `0x${"b".repeat(64)}` });
+    const contractId = String(3000 + contractNumber);
+    mockContracts.unshift({ contractId, planId, state: "Created", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "2500000", slaDeadline: "2026-12-01T12:00:00Z" });
+    return json({ contractId, planId, state: "Created", agreementHash: `0x${"b".repeat(64)}` });
   }
   if (cleanPath === "/plans/demo" && request.method === "GET") {
     return json({ ...allocationPlan, sampleData: true });

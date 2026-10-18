@@ -200,9 +200,11 @@ test(
     assert.equal(Object.hasOwn(adminDetail.json(), "terms"), false);
     assert.equal(Object.hasOwn(adminDetail.json(), "assignments"), false);
     assert.equal(Object.hasOwn(adminDetail.json(), "netPaymentPaise"), false);
+    assert.equal(adminDetail.json().history.some((event) => event.action === "DeliveryConfirmed"), true, "operator can inspect public lifecycle event metadata");
     const auditorDetail = await app.inject({ method: "GET", url: `/contracts/${contractId}`, headers: auditorHeaders });
     assert.equal(auditorDetail.statusCode, 200);
     assert.equal(Object.hasOwn(auditorDetail.json(), "terms"), false);
+    assert.equal(auditorDetail.json().history.some((event) => event.action === "DeliveryConfirmed"), true, "auditor can inspect public lifecycle event metadata");
     const adminList = await app.inject({ method: "GET", url: "/contracts", headers: adminHeaders });
     assert.equal(adminList.statusCode, 200);
     const adminSummary = adminList.json().items.find((item) => item.contractId === contractId);
