@@ -10,6 +10,9 @@ import { BackendUnavailable, HealthBanner, useServiceHealth } from "../component
 import { OverviewPage } from "./OverviewPage";
 import { OptimizationPage } from "./OptimizationPage";
 import { ContractsPage } from "./ContractsPage";
+import { SignupPage } from "./SignupPage";
+import { AdminAccountsPage } from "./AdminAccountsPage";
+import { PasswordField } from "../components/PasswordField";
 import { useLiveContractAlerts } from "./useLiveContractAlerts";
 
 const DEMO_USERS = [
@@ -23,6 +26,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<WorkspaceShell />}>
           <Route element={<RouteTransition />}>
@@ -33,7 +37,7 @@ export function AppRoutes() {
           <Route path="contracts" element={<PermissionPage path="/contracts" title="Contracts"><ContractsPage /></PermissionPage>} />
           <Route path="contracts/:contractId" element={<PermissionPage path="/contracts" title="Contracts"><ContractsPage /></PermissionPage>} />
           <Route path="audit" element={<PermissionPage path="/audit" title="Audit trail" />} />
-          <Route path="admin" element={<PermissionPage path="/admin" title="Administration" />} />
+          <Route path="admin" element={<PermissionPage path="/admin" title="Administration"><AdminAccountsPage /></PermissionPage>} />
           <Route path="*" element={<Navigate to="/overview" replace />} />
           </Route>
         </Route>
@@ -146,13 +150,14 @@ function LoginPage() {
               {DEMO_USERS.map((user) => <option key={user.username} value={user.username}>{user.role} · {user.username}</option>)}
             </select>
           ) : (
-            <input id="username" autoComplete="username" required value={username} onChange={(event) => setUsername(event.target.value)} />
+            <input id="username" autoComplete="username" autoCapitalize="none" spellCheck={false} required maxLength={128} value={username} onChange={(event) => setUsername(event.target.value)} />
           )}
           <label htmlFor="password">Password</label>
-          <input id="password" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} />
+          <PasswordField id="password" value={password} onChange={setPassword} autoComplete="current-password" />
           {API_MODE === "mock" && <small>Enter any non-empty password for this local mock session.</small>}
           <button className="primary-button" type="submit" disabled={pending}>{pending ? "Signing in…" : "Sign in"}</button>
         </form>
+        <p className="auth-switch">New to ChainRoute? <Link to="/signup">Create an account</Link></p>
         <p className="login-footnote">Your session stays in this browser tab and expires with its access token.</p>
       </section>
     </main>

@@ -44,7 +44,7 @@ export async function createPlatformApp(options: PlatformAppOptions) {
       : {
           level: options.logLevel ?? "info",
           redact: {
-            paths: ["req.headers.authorization", "req.headers.cookie", "req.body.password"],
+            paths: ["req.headers.authorization", "req.headers.cookie", "req.body.password", "req.body.invitationToken"],
             censor: "[REDACTED]",
           },
           ...(options.loggerStream ? { stream: options.loggerStream } : {}),

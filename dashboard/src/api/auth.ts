@@ -18,6 +18,23 @@ export async function login(username: string, password: string): Promise<AuthSes
   return session;
 }
 
+export async function signup(username: string, password: string, invitationToken?: string): Promise<AuthSession> {
+  const response = await apiRequest<unknown>("/auth/signup", {
+    method: "POST", auth: false,
+    body: { username: username.trim(), password, ...(invitationToken ? { invitationToken } : {}) },
+  });
+  if (!isLoginResponse(response)) throw new Error("The server returned an invalid signup response.");
+  const session = createSession(response);
+  writeSession(session);
+  return session;
+}
+
+export function previewInvitation(invitationToken: string) {
+  return apiRequest<{ role: UserSummary["role"]; expiresAt: string }>("/auth/invitations/preview", {
+    method: "POST", auth: false, body: { invitationToken },
+  });
+}
+
 function isLoginResponse(value: unknown): value is LoginResponse {
   if (typeof value !== "object" || value === null || !("user" in value)) return false;
   const response = value as Partial<LoginResponse>;

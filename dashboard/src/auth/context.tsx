@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { login as requestLogin } from "../api/auth";
+import { login as requestLogin, signup as requestSignup } from "../api/auth";
 import { clearSession, readSession, type AuthSession } from "./session";
 
 type AuthContextValue = {
   session: AuthSession | null;
   signIn: (username: string, password: string) => Promise<AuthSession>;
+  signUp: (username: string, password: string, invitationToken?: string) => Promise<AuthSession>;
   signOut: () => void;
 };
 
@@ -33,7 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }, []);
 
-  const value = useMemo(() => ({ session, signIn, signOut }), [session, signIn, signOut]);
+  const signUp = useCallback(async (username: string, password: string, invitationToken?: string) => {
+    const next = await requestSignup(username, password, invitationToken);
+    setSession(next);
+    return next;
+  }, []);
+
+  const value = useMemo(() => ({ session, signIn, signUp, signOut }), [session, signIn, signUp, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

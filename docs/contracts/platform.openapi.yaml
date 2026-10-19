@@ -35,7 +35,8 @@ paths:
   /auth/login:
     post:
       tags: [Authentication]
-      summary: Exchange demo credentials for a bearer token
+      summary: Exchange account credentials for a bearer token
+      description: "Username matching ignores case and surrounding whitespace. Role and active status come from PostgreSQL, never from the client. Rate limited to five requests per IP per minute."
       security: []
       requestBody:
         required: true
@@ -53,17 +54,63 @@ paths:
           description: Credentials accepted.
           content:
             application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required: [accessToken, tokenType, expiresAt, user]
-                properties:
-                  accessToken: { type: string }
-                  tokenType: { const: Bearer }
-                  expiresAt: { type: string, format: date-time }
-                  user: { $ref: "#/components/schemas/UserSummary" }
+              schema: { $ref: "#/components/schemas/LoginSession" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /auth/signup:
+    post:
+      tags: [Authentication]
+      summary: Register a Shipper account or redeem a role invitation
+      security: []
+      description: "Public signup always creates a Shipper. An optional valid single-use invitation determines any other role. Client-provided role and wallet fields cannot grant permissions. Passwords must contain at least 12 characters and at most 256 UTF-8 bytes; no composition rule or truncation. Usernames are stored lowercase and unique ignoring case. Rate limited to five requests per IP per minute."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [username, password]
+              properties:
+                username: { type: string, minLength: 3, maxLength: 64, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$' }
+                password: { type: string, minLength: 12, maxLength: 256, writeOnly: true }
+                invitationToken: { type: string, pattern: '^[A-Za-z0-9_-]{43}$', writeOnly: true }
+      responses:
+        "201":
+          description: Account created and signed in; response is not cacheable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginSession" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { description: Too many registration attempts. }
+  /auth/invitations/preview:
+    post:
+      tags: [Authentication]
+      summary: Check an invitation's role and expiry without consuming it
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [invitationToken]
+              properties:
+                invitationToken: { type: string, pattern: '^[A-Za-z0-9_-]{43}$', writeOnly: true }
+      responses:
+        "200":
+          description: Invitation is available; role and expiresAt are returned without its secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [role, expiresAt]
+                properties:
+                  role: { $ref: "#/components/schemas/Role" }
+                  expiresAt: { type: string, format: date-time }
+        "400": { $ref: "#/components/responses/BadRequest" }
   /orders:
     post:
       tags: [Orders and plans]
@@ -500,47 +547,25 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: "#/components/schemas/UserSummary" }
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 200
+                    items: { $ref: "#/components/schemas/AccountSummary" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
-    post:
-      tags: [Administration]
-      summary: Create a demo/platform user
-      description: "Allowed: Administrator. Password is write-only and must never appear in logs or responses; new users are active by default."
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [username, password, role]
-              properties:
-                username: { type: string, minLength: 1 }
-                password: { type: string, minLength: 12, writeOnly: true }
-                role: { $ref: "#/components/schemas/Role" }
-                chainAddress: { type: string, pattern: "^0x[0-9a-fA-F]{40}$" }
-      responses:
-        "201":
-          description: User created.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UserSummary" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
   /admin/users/{userId}:
     parameters:
       - name: userId
         in: path
         required: true
-        schema: { type: string, minLength: 1 }
+        schema: { type: string, format: uuid }
     patch:
       tags: [Administration]
-      summary: Update a user's role, status, or chain account
-      description: "Allowed: Administrator. Deactivate a user rather than deleting them; disabled users' tokens are rejected."
+      summary: Enable or disable an account
+      description: "Allowed: Administrator. Disabled users' tokens are rejected on their next protected request. An administrator cannot disable their own account. This endpoint cannot change roles or wallet mappings."
       requestBody:
         required: true
         content:
@@ -548,21 +573,87 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              minProperties: 1
+              required: [active]
               properties:
-                role: { $ref: "#/components/schemas/Role" }
                 active: { type: boolean }
-                chainAddress: { type: [string, "null"], pattern: "^0x[0-9a-fA-F]{40}$" }
       responses:
         "200":
           description: Updated user, with no credential material.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/UserSummary" }
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  username: { type: string }
+                  role: { $ref: "#/components/schemas/Role" }
+                  active: { type: boolean }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/invitations:
+    get:
+      tags: [Administration]
+      summary: List up to 100 pending invitations without their secret tokens
+      description: "Allowed: Administrator. Returns items ordered newest first."
+      responses:
+        "200":
+          description: Available, unused, unrevoked invitations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AccountInvitation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Administration]
+      summary: Create a single-use role invitation valid for 24 hours
+      description: "Allowed: Administrator. Only the SHA-256 hash is stored. The invitationToken is returned once and must be shared by the administrator; the platform does not send email."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [role]
+              properties:
+                role: { $ref: "#/components/schemas/Role" }
+      responses:
+        "201":
+          description: Invitation id, role, expiresAt, and invitationToken. Response is not cacheable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, role, expiresAt, invitationToken]
+                properties:
+                  id: { type: string, format: uuid }
+                  role: { $ref: "#/components/schemas/Role" }
+                  expiresAt: { type: string, format: date-time }
+                  invitationToken: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /admin/invitations/{invitationId}:
+    delete:
+      tags: [Administration]
+      summary: Revoke an unused invitation
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Invitation is revoked or already unavailable. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /admin/wagons:
     get:
       tags: [Administration]
@@ -812,13 +903,38 @@ components:
     UserSummary:
       type: object
       additionalProperties: false
-      required: [userId, username, role, active]
+      required: [id, username, role]
       properties:
-        userId: { type: string }
+        id: { type: string, format: uuid }
+        username: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+    LoginSession:
+      type: object
+      additionalProperties: false
+      required: [token, tokenType, expiresIn, user]
+      properties:
+        token: { type: string }
+        tokenType: { const: Bearer }
+        expiresIn: { type: integer, const: 900 }
+        user: { $ref: "#/components/schemas/UserSummary" }
+    AccountSummary:
+      type: object
+      additionalProperties: false
+      required: [id, username, role, active, walletMapped, createdAt]
+      properties:
+        id: { type: string, format: uuid }
         username: { type: string }
         role: { $ref: "#/components/schemas/Role" }
         active: { type: boolean }
-        chainAddress: { type: [string, "null"], pattern: "^0x[0-9a-fA-F]{40}$" }
+        walletMapped: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    AccountInvitation:
+      type: object
+      required: [id, role, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        role: { $ref: "#/components/schemas/Role" }
+        expiresAt: { type: string, format: date-time }
     OrderInput:
       type: object
       additionalProperties: false

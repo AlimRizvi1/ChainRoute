@@ -78,6 +78,6 @@ function assertPassword(password: string): void {
     password.length === 0 ||
     Buffer.byteLength(password, "utf8") > MAX_PASSWORD_BYTES
   ) {
-    throw new Error("Demo password must contain 1–256 UTF-8 bytes.");
+    throw new Error("Password must contain 1–256 UTF-8 bytes.");
   }
 }

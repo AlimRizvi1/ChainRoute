@@ -208,7 +208,7 @@ async function cacheLog(
     );
   }
   if (inserted.rowCount) {
-    push.broadcast({ contractId, action: name, occurredAt, transactionHash: log.transactionHash, state }, contractRow.rows[0].shipper_id, contractRow.rows[0].carrier_id);
+    await push.broadcast({ contractId, action: name, occurredAt, transactionHash: log.transactionHash, state }, contractRow.rows[0].shipper_id, contractRow.rows[0].carrier_id);
   }
 }
 

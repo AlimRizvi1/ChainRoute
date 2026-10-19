@@ -4,11 +4,13 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
 import { canPerform, isPermission, isRole } from "./authorization.js";
 import { verifyPassword } from "./password.js";
+import { registerAccountRoutes } from "./accounts.js";
+import { ACCESS_TOKEN_SECONDS, sendSession } from "./session.js";
 import type { AuthenticatedActor } from "./fastify.js";
 
 const TOKEN_ISSUER = "chainroute-platform";
 const TOKEN_AUDIENCE = "chainroute-dashboard";
-export const ACCESS_TOKEN_SECONDS = 15 * 60;
+export { ACCESS_TOKEN_SECONDS } from "./session.js";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 type LoginBody = { username: string; password: string };
@@ -53,8 +55,12 @@ export async function registerAuthentication(
   app.decorateRequest("actor", null);
 
   app.addHook("onRequest", async (request, reply) => {
+    if (request.url.startsWith("/auth/") || request.url.startsWith("/admin/")) reply.header("cache-control", "no-store");
     if (request.routeOptions.config.public === true) return;
     await authenticateRequest(request, reply, database);
+    // Await the response pipeline even while its asynchronous audit hook runs.
+    // Otherwise a rejected request can continue into a handler without an actor.
+    if (!request.actor) return reply;
   });
 
   app.addHook("preHandler", async (request, reply) => {
@@ -64,7 +70,7 @@ export async function registerAuthentication(
     if (!permission || !isPermission(permission)) {
       return sendError(reply, 403, "FORBIDDEN", "You are not allowed to perform this action.");
     }
-    if (!request.actor) return;
+    if (!request.actor) return reply;
     if (!canPerform(request.actor.role, permission, request.actor.userId)) {
       return sendError(reply, 403, "FORBIDDEN", "You are not allowed to perform this action.");
     }
@@ -130,8 +136,8 @@ export async function registerAuthentication(
         password_hash: string | null;
       }>(
         `SELECT user_id, username, role, chain_address, active, password_hash
-         FROM users WHERE username = $1`,
-        [request.body.username],
+         FROM users WHERE lower(username) = $1`,
+        [request.body.username.trim().toLowerCase()],
       );
       const user = result.rows[0];
       const passwordMatches = await verifyPassword(
@@ -142,20 +148,10 @@ export async function registerAuthentication(
         return sendError(reply, 401, "INVALID_CREDENTIALS", "Username or password is incorrect.");
       }
 
-      const token = await reply.jwtSign({ sub: user.user_id, role: user.role });
-      reply.header("cache-control", "no-store");
-      return reply.code(200).send({
-        token,
-        tokenType: "Bearer",
-        expiresIn: ACCESS_TOKEN_SECONDS,
-        user: {
-          id: user.user_id,
-          username: user.username,
-          role: user.role,
-        },
-      });
+      return sendSession(reply, user);
     },
   );
+  await registerAccountRoutes(app, database);
 }
 
 const DUMMY_PASSWORD_HASH =
