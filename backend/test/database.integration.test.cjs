@@ -79,8 +79,8 @@ test(
     );
     await assert.rejects(
       pool.query(
-        `INSERT INTO allocation_plans (plan_id, run_id, created_by, plan_payload, score)
-         VALUES ('dangling-plan', 'missing-run', $1, '{}'::jsonb, 0)`,
+        `INSERT INTO allocation_plans (plan_id, run_id, created_by, plan_payload, score, scenario_group_id)
+         VALUES ('dangling-plan', 'missing-run', $1, '{}'::jsonb, 0, 'dangling-plan')`,
         [seededUser.rows[0].user_id],
       ),
       (error) => error.code === "23503",
