@@ -37,6 +37,7 @@ test(
       "002_authentication_audit.sql",
       "003_contract_operations.sql",
       "004_event_sync_and_action_queue.sql",
+      "005_saved_what_if_scenarios.sql",
     ]);
     assert.deepEqual(await runMigrations(pool), []);
 

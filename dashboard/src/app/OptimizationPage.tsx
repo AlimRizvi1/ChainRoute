@@ -80,7 +80,7 @@ export function OptimizationPage() {
     if (busy || totalWeight <= 0) return;
     setBusy(true); setError(null); setEmptyMessage(null);
     try {
-      const result = await runOptimization(shares ?? weights);
+      const result = await runOptimization(shares ?? weights, plan?.planId);
       if ("status" in result && result.status === "empty") {
         setEmptyMessage(result.message); setPrevious(plan); setPlan(null);
       } else {
@@ -158,7 +158,7 @@ export function OptimizationPage() {
       <div className="weight-bar" aria-label={shares ? `Normalized weights: on-time ${Math.round(shares.onTime * 100)}%, cost ${Math.round(shares.cost * 100)}%, utilization ${Math.round(shares.utilization * 100)}%` : "Weights total zero"}>
         <span style={{ width: `${(shares?.onTime ?? 0) * 100}%` }} /><span style={{ width: `${(shares?.cost ?? 0) * 100}%` }} /><span style={{ width: `${(shares?.utilization ?? 0) * 100}%` }} />
       </div>
-      <div className="optimization-run-row"><div><strong>Every run keeps its own plan.</strong><small>Pending orders are locked into the saved result.</small></div><button className="primary-button run-button" disabled={busy || !shares} onClick={() => void run()} type="button">{busy ? <><span className="loading-mark" /> Finding a route…</> : <>{plan ? "Run what-if" : "Run allocation"}<span aria-hidden="true"> ↗</span></>}</button></div>
+      <div className="optimization-run-row"><div><strong>Every run keeps its own plan.</strong><small>{plan ? "What-if runs reuse the saved order and yard snapshot." : "Pending orders are locked into the saved result."}</small></div><button className="primary-button run-button" disabled={busy || !shares} onClick={() => void run()} type="button">{busy ? <><span className="loading-mark" /> Finding a route…</> : <>{plan ? "Run what-if" : "Run allocation"}<span aria-hidden="true"> ↗</span></>}</button></div>
       {busy && <div className="run-progress" role="status"><span /><div><strong>Searching the active yard</strong><small>Comparing routes, capacity, and delivery windows.</small></div></div>}
       {error && <p className="form-error" role="alert">{error}</p>}
       {emptyMessage && <div className="optimization-empty" role="status"><strong>No pending orders reached the optimizer.</strong><p>{emptyMessage}</p><span>Orders already submitted remain available in your order queue.</span></div>}

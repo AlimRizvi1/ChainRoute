@@ -145,6 +145,39 @@ test(
     await assert.rejects(() => pool.query("UPDATE orders SET destination = 'Changed' WHERE order_id = $1", [plan.assignments[0].orderId]));
     assert.equal((await pool.query("SELECT count(*)::int AS count FROM optimization_runs WHERE run_id = $1", [plan.runId])).rows[0].count, 1);
 
+    const alternative = await app.inject({ method: "POST", url: "/optimizations/run", headers, payload: {
+      weights: { onTime: 0, cost: 1, utilization: 0 }, sourcePlanId: plan.planId,
+    } });
+    assert.equal(alternative.statusCode, 200, alternative.body);
+    const alternativePlan = alternative.json();
+    assert.notEqual(alternativePlan.planId, plan.planId);
+    assert.equal((await pool.query("SELECT source_plan_id FROM allocation_plans WHERE plan_id = $1", [alternativePlan.planId])).rows[0].source_plan_id, plan.planId);
+    const scenarioPlans = await pool.query("SELECT scenario_group_id FROM allocation_plans WHERE plan_id = ANY($1::text[]) ORDER BY plan_id", [[plan.planId, alternativePlan.planId]]);
+    assert.equal(scenarioPlans.rowCount, 2);
+    assert.equal(scenarioPlans.rows[0].scenario_group_id, scenarioPlans.rows[1].scenario_group_id);
+    assert.equal((await pool.query("SELECT count(*)::int AS count FROM plan_orders WHERE order_id = $1", [orderId])).rows[0].count, 2);
+    assert.equal((await pool.query("SELECT status FROM orders WHERE order_id = $1", [orderId])).rows[0].status, "Planned");
+    const childSnapshot = await pool.query("SELECT input_snapshot FROM optimization_runs WHERE run_id = $1", [alternativePlan.runId]);
+    assert.deepEqual(childSnapshot.rows[0].input_snapshot.orders.map((order) => order.orderId).sort(), [orderId, secondOrder.json().orderId].sort());
+    assert.deepEqual(childSnapshot.rows[0].input_snapshot.weights, { onTime: 0, cost: 1, utilization: 0 });
+
+    const inaccessibleSource = await app.inject({ method: "POST", url: "/optimizations/run", headers, payload: {
+      weights: { onTime: 1, cost: 0, utilization: 0 }, sourcePlanId: "missing-plan",
+    } });
+    assert.equal(inaccessibleSource.statusCode, 404);
+
+    await pool.query(
+      `INSERT INTO contract_operations (operation_id, plan_id, action, idempotency_key, request_hash, status, request_payload, actor_user_id, scenario_group_id)
+       SELECT $1, $2, 'accept', 'test-active-accept', $3, 'pending', '{}'::jsonb, $4, scenario_group_id
+       FROM allocation_plans WHERE plan_id = $2`,
+      [randomUUID(), plan.planId, "a".repeat(64), shipper.rows[0].user_id],
+    );
+    const blockedWhatIf = await app.inject({ method: "POST", url: "/optimizations/run", headers, payload: {
+      weights: { onTime: 1, cost: 0, utilization: 0 }, sourcePlanId: alternativePlan.planId,
+    } });
+    assert.equal(blockedWhatIf.statusCode, 409);
+    assert.equal(blockedWhatIf.json().error.code, "SCENARIO_ALREADY_ACCEPTED");
+
     const fetched = await app.inject({ method: "GET", url: `/plans/${plan.planId}`, headers });
     assert.equal(fetched.statusCode, 200);
     assert.equal(fetched.json().runId, plan.runId);

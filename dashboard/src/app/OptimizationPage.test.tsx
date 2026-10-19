@@ -52,6 +52,7 @@ describe("optimization workshop", () => {
     expect(screen.getAllByText("₹4,500").length).toBeGreaterThanOrEqual(1);
     expect(runOptimization).toHaveBeenCalledTimes(2);
     expect(vi.mocked(runOptimization).mock.calls[1][0]).toEqual({ onTime: 1, cost: 0, utilization: 0 });
+    expect(vi.mocked(runOptimization).mock.calls[1][1]).toBe("plan-1");
   });
 
   it("explains unassigned orders and offers ranked alternatives", async () => {

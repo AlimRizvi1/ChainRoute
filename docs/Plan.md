@@ -1173,7 +1173,7 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 - `requestOptimizedPlan`: gather pending orders, master data, and the requested weights; call Track 1's `optimize` endpoint; persist the returned plan and its run ID; return it to the caller.
 - Plan retrieval by ID, and export in at least one machine-readable format (CSV or JSON) for downstream hand-off.
 
-**Decisions to Confirm.** What counts as a "pending" order (recommended: any order not yet part of an accepted plan); the timeout applied to the call to Track 1 (recommended: a value comfortably above Track 1's measured performance target from §9, for example 60 seconds); what happens to an order's status if its plan is later rejected rather than accepted.
+**Decision.** Resolved by [decision 30](decisions.md): only `Pending` orders enter a new run, the default Track 1 timeout is 60 seconds, and saving the plan locks the included orders. No rejection/unlock action exists in the prototype; weight what-if runs reuse the immutable saved input snapshot and keep alternatives in one scenario group.
 
 **Expected Input / Output.** Input: an order submission (cargo type, quantity, destination, priority, deadline), or a request to run optimization with a weights object. Output: an order ID; or an `AllocationPlan` with a plan ID and run ID, persisted and retrievable afterward.
 

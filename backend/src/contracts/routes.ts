@@ -255,8 +255,8 @@ async function acceptPlan(request: FastifyRequest<{ Params: { planId: string }; 
   const actor = request.actor!;
   let queuedOperationId: string | undefined;
   const planResult = actor.role === "Administrator"
-    ? await db.query("SELECT plan_payload, created_by FROM allocation_plans WHERE plan_id = $1", [request.params.planId])
-    : await db.query("SELECT plan_payload, created_by FROM allocation_plans WHERE plan_id = $1 AND created_by = $2", [request.params.planId, actor.userId]);
+    ? await db.query("SELECT plan_payload, created_by, scenario_group_id FROM allocation_plans WHERE plan_id = $1", [request.params.planId])
+    : await db.query("SELECT plan_payload, created_by, scenario_group_id FROM allocation_plans WHERE plan_id = $1 AND created_by = $2", [request.params.planId, actor.userId]);
   const planRow = planResult.rows[0];
   if (!planRow) return apiError(reply, 404, "NOT_FOUND", "Plan was not found.");
   let opened: Awaited<ReturnType<typeof openSettlement>> | undefined;
@@ -292,21 +292,30 @@ async function acceptPlan(request: FastifyRequest<{ Params: { planId: string }; 
     const termsHash = keccak256(toUtf8Bytes(canonicalJson(termsDocument)));
     const idempotencyKey = getIdempotencyKey(request);
     const requestHash = hashRequest({ ...termsDocument, idempotencyKey });
-    const operation = await reserveOperation(db, {
-      planId: request.params.planId, contractId: null, action: "accept", idempotencyKey, requestHash,
-      requestPayload: request.body, actorUserId: actor.userId,
-      workerToken: request.headers["x-chainroute-worker-token"] as string | undefined,
-    });
+    let operation: Awaited<ReturnType<typeof reserveOperation>>;
+    try {
+      operation = await reserveOperation(db, {
+        planId: request.params.planId, contractId: null, action: "accept", idempotencyKey, requestHash,
+        requestPayload: request.body, actorUserId: actor.userId,
+        workerToken: request.headers["x-chainroute-worker-token"] as string | undefined,
+        scenarioGroupId: planRow.scenario_group_id,
+      });
+    } catch (error) {
+      if ((error as { code?: string })?.code === "23505") {
+        return apiError(reply, 409, "SCENARIO_ACCEPTANCE_PENDING", "Another plan from this what-if set is already being accepted.");
+      }
+      throw error;
+    }
     if (operation.kind === "replay") return reply.code(200).send(operation.payload);
     if (operation.kind === "queued") return queuedReply(reply, operation.operationId);
     queuedOperationId = operation.operationId;
+    const existing = await db.query("SELECT contract_id FROM contracts WHERE scenario_group_id = $1", [planRow.scenario_group_id]);
+    if (existing.rowCount) {
+      await markOperationFailed(db, request.params.planId, "accept", idempotencyKey, new ActionError(409, "SCENARIO_ALREADY_ACCEPTED", "A plan from this what-if set already has a contract."));
+      return apiError(reply, 409, "SCENARIO_ALREADY_ACCEPTED", "A plan from this what-if set already has a contract.");
+    }
     opened = await openSettlement(rpcUrl, artifactPath);
     const operator = getAddress(await opened.contract.getFunction("operator")());
-    const existing = await db.query("SELECT contract_id FROM contracts WHERE plan_id = $1", [request.params.planId]);
-    if (existing.rowCount) {
-      await markOperationFailed(db, request.params.planId, "accept", idempotencyKey, new ActionError(409, "PLAN_ALREADY_ACCEPTED", "This plan already has a contract."));
-      return apiError(reply, 409, "PLAN_ALREADY_ACCEPTED", "This plan already has a contract.");
-    }
     let event = await findAcceptedEvent(opened.contract, request.params.planId);
     let transactionHash: string | null = null;
     if (operation.kind === "in_progress" && !event) {
@@ -342,10 +351,10 @@ async function acceptPlan(request: FastifyRequest<{ Params: { planId: string }; 
     try {
       await client.query("BEGIN");
       await client.query(
-        `INSERT INTO contracts (contract_id, plan_id, shipper_id, carrier_id, shipper_address, carrier_address, state,
+        `INSERT INTO contracts (contract_id, plan_id, scenario_group_id, shipper_id, carrier_id, shipper_address, carrier_address, state,
           agreement_hash, terms_hash, terms, assignments, freight_value_paise, sla_deadline, sync_status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'Created', $7, $8, $9::jsonb, $10::jsonb, $11, $12, 'synced')`,
-        [contractId, request.params.planId, shipper.user_id, carrier.user_id, shipper.chain_address, carrier.chain_address,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'Created', $8, $9, $10::jsonb, $11::jsonb, $12, $13, 'synced')`,
+        [contractId, request.params.planId, planRow.scenario_group_id, shipper.user_id, carrier.user_id, shipper.chain_address, carrier.chain_address,
           agreementHash, termsHash, JSON.stringify(normalizedTerms), JSON.stringify(assigned), normalizedTerms.freightValuePaise, deadline],
       );
       await client.query(
@@ -449,16 +458,38 @@ async function runContractAction(
 
 async function reserveOperation(db: Pool, value: {
   planId: string; contractId: string | null; action: string; idempotencyKey: string; requestHash: string;
-  requestPayload: Record<string, unknown>; actorUserId: string; workerToken?: string;
+  requestPayload: Record<string, unknown>; actorUserId: string; workerToken?: string; scenarioGroupId?: string;
 }) {
   const operationId = randomUUID();
-  const inserted = await db.query(
-    `INSERT INTO contract_operations (operation_id, plan_id, contract_id, action, idempotency_key, request_hash, status, request_payload, actor_user_id)
-     VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7::jsonb, $8) ON CONFLICT (plan_id, action, idempotency_key) DO NOTHING`,
-    [operationId, value.planId, value.contractId, value.action, value.idempotencyKey, value.requestHash, JSON.stringify(value.requestPayload), value.actorUserId],
+  if (value.action === "accept" && value.scenarioGroupId) {
+    const client = await db.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [value.scenarioGroupId]);
+      const result = await reserveOperationWithExecutor(client, value, operationId);
+      await client.query("COMMIT");
+      return result;
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  return reserveOperationWithExecutor(db, value, operationId);
+}
+
+async function reserveOperationWithExecutor(executor: Pool | PoolClient, value: {
+  planId: string; contractId: string | null; action: string; idempotencyKey: string; requestHash: string;
+  requestPayload: Record<string, unknown>; actorUserId: string; workerToken?: string; scenarioGroupId?: string;
+}, operationId: string) {
+  const inserted = await executor.query(
+    `INSERT INTO contract_operations (operation_id, plan_id, contract_id, action, idempotency_key, request_hash, status, request_payload, actor_user_id, scenario_group_id)
+     VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7::jsonb, $8, $9) ON CONFLICT (plan_id, action, idempotency_key) DO NOTHING`,
+    [operationId, value.planId, value.contractId, value.action, value.idempotencyKey, value.requestHash, JSON.stringify(value.requestPayload), value.actorUserId, value.scenarioGroupId ?? null],
   );
   if (inserted.rowCount === 1) return { kind: "new" as const, operationId };
-  const existing = await db.query<{ operation_id: string; request_hash: string; status: string; response_payload: Record<string, unknown> | null; worker_token: string | null }>(
+  const existing = await executor.query<{ operation_id: string; request_hash: string; status: string; response_payload: Record<string, unknown> | null; worker_token: string | null }>(
     "SELECT operation_id, request_hash, status, response_payload, worker_token FROM contract_operations WHERE plan_id = $1 AND action = $2 AND idempotency_key = $3",
     [value.planId, value.action, value.idempotencyKey],
   );
@@ -467,13 +498,13 @@ async function reserveOperation(db: Pool, value: {
   if (row.status === "succeeded" && row.response_payload) return { kind: "replay" as const, payload: row.response_payload };
   if (row.status === "queued" || row.status === "processing") {
     if (row.status === "processing" && value.workerToken && row.worker_token === value.workerToken) {
-      await db.query("UPDATE contract_operations SET status = 'pending', worker_token = NULL, updated_at = now() WHERE operation_id = $1", [row.operation_id]);
+      await executor.query("UPDATE contract_operations SET status = 'pending', worker_token = NULL, updated_at = now() WHERE operation_id = $1", [row.operation_id]);
       return { kind: "new" as const, operationId: row.operation_id };
     }
     return { kind: "queued" as const, operationId: row.operation_id };
   }
   if (row.status === "failed") {
-    await db.query("UPDATE contract_operations SET status = 'pending', failure_code = NULL, updated_at = now() WHERE operation_id = $1", [row.operation_id]);
+    await executor.query("UPDATE contract_operations SET status = 'pending', failure_code = NULL, updated_at = now() WHERE operation_id = $1", [row.operation_id]);
     return { kind: "new" as const, operationId: row.operation_id };
   }
   return { kind: "in_progress" as const, operationId: row.operation_id };

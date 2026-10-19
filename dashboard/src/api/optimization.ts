@@ -41,9 +41,9 @@ export function createOrder(input: OrderInput) {
   return apiRequest<{ orderId: string; status: "Pending" }>("/orders", { method: "POST", body: input });
 }
 
-export function runOptimization(weights: Weights) {
+export function runOptimization(weights: Weights, sourcePlanId?: string) {
   return apiRequest<AllocationPlan | { status: "empty"; message: string; plan: null }>("/optimizations/run", {
-    method: "POST", body: { weights, timeBudgetSeconds: 5 },
+    method: "POST", body: { weights, timeBudgetSeconds: 5, ...(sourcePlanId ? { sourcePlanId } : {}) },
   });
 }
 

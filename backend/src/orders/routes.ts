@@ -13,6 +13,14 @@ type OrderInput = {
 type OptimizationInput = {
   weights: { onTime: number; cost: number; utilization: number };
   timeBudgetSeconds?: number;
+  sourcePlanId?: string;
+};
+type OptimizationSnapshot = {
+  orders: Array<Record<string, unknown>>;
+  wagons: Array<Record<string, unknown>>;
+  routes: Array<Record<string, unknown>>;
+  weights: OptimizationInput["weights"];
+  timeBudgetSeconds?: number;
 };
 type PlanPayload = {
   planId: string;
@@ -62,6 +70,7 @@ const optimizationSchema = {
         },
       },
       timeBudgetSeconds: { type: "number", minimum: 0.05, maximum: 10 },
+      sourcePlanId: { type: "string", minLength: 1, maxLength: 128 },
     },
   },
 };
@@ -108,43 +117,90 @@ export async function registerOrderRoutes(
     async (request, reply) => {
       const actor = requireActor(request, reply);
       if (!actor) return;
-      const ordersResult = actor.role === "Administrator"
-        ? await database.query<PendingOrder>(
-            `SELECT order_id, cargo_type, quantity_tonnes::text, destination, priority, deadline
-             FROM orders WHERE status = 'Pending' ORDER BY created_at, order_id`,
-          )
-        : await database.query<PendingOrder>(
-            `SELECT order_id, cargo_type, quantity_tonnes::text, destination, priority, deadline
-             FROM orders WHERE status = 'Pending' AND created_by = $1 ORDER BY created_at, order_id`,
-            [actor.userId],
-          );
-      if (ordersResult.rowCount === 0) {
-        return reply.code(200).send({ status: "empty", message: "There are no pending orders to optimize.", plan: null });
+      let sourcePlanId: string | null = null;
+      let scenarioGroupId: string | null = null;
+      let planOwnerId = actor.userId;
+      let baseSnapshot: OptimizationSnapshot;
+
+      if (request.body.sourcePlanId) {
+        const sourceResult = actor.role === "Administrator"
+          ? await database.query<{ created_by: string; scenario_group_id: string; input_snapshot: unknown }>(
+              `SELECT p.created_by, p.scenario_group_id, r.input_snapshot
+               FROM allocation_plans p JOIN optimization_runs r ON r.run_id = p.run_id
+               WHERE p.plan_id = $1`,
+              [request.body.sourcePlanId],
+            )
+          : await database.query<{ created_by: string; scenario_group_id: string; input_snapshot: unknown }>(
+              `SELECT p.created_by, p.scenario_group_id, r.input_snapshot
+               FROM allocation_plans p JOIN optimization_runs r ON r.run_id = p.run_id
+               WHERE p.plan_id = $1 AND p.created_by = $2`,
+              [request.body.sourcePlanId, actor.userId],
+            );
+        const source = sourceResult.rows[0];
+        if (!source) return sendError(reply, 404, "NOT_FOUND", "Source plan was not found.");
+
+        const activity = await database.query(
+          `SELECT EXISTS (SELECT 1 FROM contracts WHERE scenario_group_id = $1)
+                    OR EXISTS (SELECT 1 FROM contract_operations
+                               WHERE scenario_group_id = $1 AND action = 'accept'
+                                 AND status IN ('pending', 'queued', 'processing')) AS locked`,
+          [source.scenario_group_id],
+        );
+        if (activity.rows[0]?.locked) {
+          return sendError(reply, 409, "SCENARIO_ALREADY_ACCEPTED", "This plan set is already being accepted or has a contract.");
+        }
+
+        const snapshot = readOptimizationSnapshot(source.input_snapshot);
+        if (!snapshot) return sendError(reply, 409, "PLAN_INPUT_UNAVAILABLE", "This saved plan has no usable optimization input snapshot.");
+        baseSnapshot = snapshot;
+        sourcePlanId = request.body.sourcePlanId;
+        scenarioGroupId = source.scenario_group_id;
+        planOwnerId = source.created_by;
+      } else {
+        const ordersResult = actor.role === "Administrator"
+          ? await database.query<PendingOrder>(
+              `SELECT order_id, cargo_type, quantity_tonnes::text, destination, priority, deadline
+               FROM orders WHERE status = 'Pending' ORDER BY created_at, order_id`,
+            )
+          : await database.query<PendingOrder>(
+              `SELECT order_id, cargo_type, quantity_tonnes::text, destination, priority, deadline
+               FROM orders WHERE status = 'Pending' AND created_by = $1 ORDER BY created_at, order_id`,
+              [actor.userId],
+            );
+        if (ordersResult.rowCount === 0) {
+          return reply.code(200).send({ status: "empty", message: "There are no pending orders to optimize.", plan: null });
+        }
+
+        const [wagonsResult, routesResult] = await Promise.all([
+          database.query(
+            `SELECT wagon_id AS "wagonId", capacity_tonnes AS "capacityTonnes", wagon_type AS "wagonType", location, available
+             FROM wagons WHERE active = true AND available = true ORDER BY wagon_id`,
+          ),
+          database.query(
+            `SELECT route_id AS "routeId", origin, destination, distance_km AS "distanceKm", transit_time_seconds AS "transitTimeSeconds"
+             FROM routes WHERE active = true ORDER BY route_id`,
+          ),
+        ]);
+        baseSnapshot = {
+          orders: ordersResult.rows.map((order) => ({
+            orderId: order.order_id,
+            cargoType: order.cargo_type,
+            quantityTonnes: Number(order.quantity_tonnes),
+            destination: order.destination,
+            priority: order.priority,
+            deadline: order.deadline.toISOString(),
+          })),
+          wagons: wagonsResult.rows.map((wagon) => ({ ...wagon, capacityTonnes: Number(wagon.capacityTonnes) })),
+          routes: routesResult.rows.map((route) => ({ ...route, distanceKm: Number(route.distanceKm) })),
+          weights: request.body.weights,
+          timeBudgetSeconds: request.body.timeBudgetSeconds ?? 1,
+        };
       }
 
-      const [wagonsResult, routesResult] = await Promise.all([
-        database.query(
-          `SELECT wagon_id AS "wagonId", capacity_tonnes AS "capacityTonnes", wagon_type AS "wagonType", location, available
-           FROM wagons WHERE active = true AND available = true ORDER BY wagon_id`,
-        ),
-        database.query(
-          `SELECT route_id AS "routeId", origin, destination, distance_km AS "distanceKm", transit_time_seconds AS "transitTimeSeconds"
-           FROM routes WHERE active = true ORDER BY route_id`,
-        ),
-      ]);
       const upstreamRequest = {
-        orders: ordersResult.rows.map((order) => ({
-          orderId: order.order_id,
-          cargoType: order.cargo_type,
-          quantityTonnes: Number(order.quantity_tonnes),
-          destination: order.destination,
-          priority: order.priority,
-          deadline: order.deadline.toISOString(),
-        })),
-        wagons: wagonsResult.rows.map((wagon) => ({ ...wagon, capacityTonnes: Number(wagon.capacityTonnes) })),
-        routes: routesResult.rows.map((route) => ({ ...route, distanceKm: Number(route.distanceKm) })),
+        ...baseSnapshot,
         weights: request.body.weights,
-        timeBudgetSeconds: request.body.timeBudgetSeconds ?? 1,
+        timeBudgetSeconds: request.body.timeBudgetSeconds ?? baseSnapshot.timeBudgetSeconds ?? 1,
       };
 
       let response: Response;
@@ -168,7 +224,7 @@ export async function registerOrderRoutes(
       try {
         const raw: unknown = await response.json();
         if (!isPlanPayload(raw)) throw new Error("Response does not match the plan contract.");
-        const inputIds = new Set(ordersResult.rows.map((order) => order.order_id));
+        const inputIds = new Set(baseSnapshot.orders.map((order) => order.orderId));
         outputIds = [...raw.assignments.map((item) => item.orderId), ...raw.unassignedOrders.map((item) => item.orderId)];
         if (new Set(outputIds).size !== outputIds.length || outputIds.length !== inputIds.size || outputIds.some((id) => !inputIds.has(id))) {
           throw new Error("Response order set does not match the submitted snapshot.");
@@ -181,15 +237,29 @@ export async function registerOrderRoutes(
       const client = await database.connect();
       try {
         await client.query("BEGIN");
+        if (scenarioGroupId) {
+          await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [scenarioGroupId]);
+          const activity = await client.query(
+            `SELECT EXISTS (SELECT 1 FROM contracts WHERE scenario_group_id = $1)
+                      OR EXISTS (SELECT 1 FROM contract_operations
+                                 WHERE scenario_group_id = $1 AND action = 'accept'
+                                   AND status IN ('pending', 'queued', 'processing')) AS locked`,
+            [scenarioGroupId],
+          );
+          if (activity.rows[0]?.locked) {
+            await client.query("ROLLBACK");
+            return sendError(reply, 409, "SCENARIO_ALREADY_ACCEPTED", "This plan set is already being accepted or has a contract.");
+          }
+        }
         await client.query(
           `INSERT INTO optimization_runs (run_id, input_hash, status, input_snapshot, run_metadata, duration_ms, completed_at)
            VALUES ($1, $2, 'succeeded', $3::jsonb, $4::jsonb, $5, $6)`,
           [plan.runId, getInputHash(plan), JSON.stringify(upstreamRequest), JSON.stringify(plan.runMetadata), plan.runMetadata.durationMs, plan.runMetadata.generatedAt],
         );
         await client.query(
-          `INSERT INTO allocation_plans (plan_id, run_id, created_by, plan_payload, score)
-           VALUES ($1, $2, $3, $4::jsonb, $5)`,
-          [plan.planId, plan.runId, actor.userId, JSON.stringify(plan), plan.score],
+          `INSERT INTO allocation_plans (plan_id, run_id, created_by, plan_payload, score, scenario_group_id, source_plan_id)
+           VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)`,
+          [plan.planId, plan.runId, planOwnerId, JSON.stringify(plan), plan.score, scenarioGroupId ?? plan.planId, sourcePlanId],
         );
         for (const orderId of outputIds) {
           await client.query(
@@ -197,12 +267,14 @@ export async function registerOrderRoutes(
             [plan.planId, orderId, plan.assignments.some((assignment) => assignment.orderId === orderId)],
           );
         }
-        const lockResult = await client.query(
-          `UPDATE orders SET status = 'Planned', locked_at = now(), updated_at = now()
-           WHERE order_id = ANY($1::text[]) AND status = 'Pending'`,
-          [outputIds],
-        );
-        if (lockResult.rowCount !== outputIds.length) throw new Error("Pending order set changed during optimization.");
+        if (!sourcePlanId) {
+          const lockResult = await client.query(
+            `UPDATE orders SET status = 'Planned', locked_at = now(), updated_at = now()
+             WHERE order_id = ANY($1::text[]) AND status = 'Pending'`,
+            [outputIds],
+          );
+          if (lockResult.rowCount !== outputIds.length) throw new Error("Pending order set changed during optimization.");
+        }
         await client.query("COMMIT");
         return reply.code(200).send(plan);
       } catch (error) {
@@ -246,6 +318,15 @@ export async function registerOrderRoutes(
       return reply.code(200).header("content-disposition", `attachment; filename="${safeFilename(plan.planId)}.csv"`).type("text/csv; charset=utf-8").send(csv);
     },
   );
+}
+
+function readOptimizationSnapshot(value: unknown): OptimizationSnapshot | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const snapshot = value as Partial<OptimizationSnapshot>;
+  if (!Array.isArray(snapshot.orders) || !snapshot.orders.length ||
+      !Array.isArray(snapshot.wagons) || !Array.isArray(snapshot.routes) ||
+      !snapshot.weights || typeof snapshot.weights !== "object") return undefined;
+  return snapshot as OptimizationSnapshot;
 }
 
 async function getOwnedPlan(database: Pool, planId: string, actor: AuthenticatedActor): Promise<{ plan_payload: unknown } | undefined> {

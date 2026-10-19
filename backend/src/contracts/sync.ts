@@ -215,7 +215,7 @@ async function cacheLog(
 async function rebuildContract(database: Pool, contract: Contract, contractId: string) {
   const result = await contract.getFunction("getContractStatus")(BigInt(contractId));
   const agreement = result[0];
-  const plan = await database.query<{ created_by: string; plan_payload: Record<string, any> }>("SELECT created_by, plan_payload FROM allocation_plans WHERE plan_id = $1", [agreement.planId]);
+  const plan = await database.query<{ created_by: string; plan_payload: Record<string, any>; scenario_group_id: string }>("SELECT created_by, plan_payload, scenario_group_id FROM allocation_plans WHERE plan_id = $1", [agreement.planId]);
   if (!plan.rowCount) return;
   const users = await database.query<{ user_id: string; role: string }>("SELECT user_id, role FROM users WHERE lower(chain_address) IN (lower($1), lower($2))", [agreement.shipper, agreement.carrier]);
   const shipper = users.rows.find((user) => user.role === "Shipper");
@@ -228,11 +228,11 @@ async function rebuildContract(database: Pool, contract: Contract, contractId: s
     freeHoldingHours: Number(terms.freeHoldingHours), demurrageRatePaisePerWagonHour: terms.demurrageRatePaisePerWagonHour.toString(), wagonCount: Number(terms.wagonCount),
   };
   await database.query(
-    `INSERT INTO contracts (contract_id, plan_id, shipper_id, carrier_id, shipper_address, carrier_address, state, terms_hash, terms, assignments,
+    `INSERT INTO contracts (contract_id, plan_id, scenario_group_id, shipper_id, carrier_id, shipper_address, carrier_address, state, terms_hash, terms, assignments,
       freight_value_paise, sla_deadline, penalty_paise, demurrage_paise, net_payment_paise, sync_status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, $13, $14, $15, 'synced')
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, $12, $13, $14, $15, $16, 'synced')
      ON CONFLICT (contract_id) DO NOTHING`,
-    [contractId, agreement.planId, shipper.user_id, carrier.user_id, agreement.shipper, agreement.carrier, getStateName(agreement.state),
+    [contractId, agreement.planId, plan.rows[0].scenario_group_id, shipper.user_id, carrier.user_id, agreement.shipper, agreement.carrier, getStateName(agreement.state),
       terms.termsHash, JSON.stringify(normalizedTerms), JSON.stringify(plan.rows[0].plan_payload.assignments), normalizedTerms.freightValuePaise,
       normalizedTerms.slaDeadline, agreement.penaltyPaise.toString(), agreement.demurragePaise.toString(), agreement.netPaymentPaise.toString()],
   );
