@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { Contract, JsonRpcProvider, Wallet, type ContractRunner, type InterfaceAbi, type TransactionReceipt } from "ethers";
+import { Contract, FetchRequest, JsonRpcProvider, Wallet, type ContractRunner, type InterfaceAbi, type TransactionReceipt } from "ethers";
 
 type Artifact = { contractName: string; address: string; chainId: number; abi: InterfaceAbi };
 
@@ -17,14 +17,20 @@ export async function openSettlement(rpcUrl: string, artifactPath: string) {
   if (artifact.contractName !== "ChainRouteSettlement" || !/^0x[0-9a-fA-F]{40}$/.test(artifact.address) || !Array.isArray(artifact.abi)) {
     throw new Error("Deployed ChainRouteSettlement artifact is invalid.");
   }
-  const provider = new JsonRpcProvider(rpcUrl);
-  const network = await provider.getNetwork();
-  if (Number(network.chainId) !== artifact.chainId) {
+  const rpcRequest = new FetchRequest(rpcUrl);
+  rpcRequest.timeout = 5000;
+  const provider = new JsonRpcProvider(rpcRequest);
+  try {
+    const network = await provider.getNetwork();
+    if (Number(network.chainId) !== artifact.chainId) {
+      throw new Error("The deployed settlement contract belongs to a different chain.");
+    }
+    const contract = new Contract(artifact.address, artifact.abi, provider);
+    return { artifact, provider, contract };
+  } catch (error) {
     await provider.destroy();
-    throw new Error("The deployed settlement contract belongs to a different chain.");
+    throw error;
   }
-  const contract = new Contract(artifact.address, artifact.abi, provider);
-  return { artifact, provider, contract };
 }
 
 export async function getSigner(

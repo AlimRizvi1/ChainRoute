@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import { JsonRpcProvider, keccak256, toUtf8Bytes, type Contract, type Log } from "ethers";
+import { JsonRpcProvider, type Contract, type Log } from "ethers";
 import type { Pool } from "pg";
-import { canonicalJson, getStateName, openSettlement } from "./chain.js";
+import { getStateName, openSettlement } from "./chain.js";
 import type { ContractPushEvent } from "./push.js";
 
 const SYNC_LOCK_ID = "7542101901";
@@ -184,13 +184,19 @@ async function cacheLog(
   const actionIndex = EVENT_ACTION[name];
   const status = await contract.getFunction("getContractStatus")(BigInt(contractId));
   const history = status[1] as Array<{ action: bigint; actor: string; timestamp: bigint; dataHash: string }>;
-  const actionHistory = [...history].reverse().find((item) => Number(item.action) === actionIndex);
-  const dataHash = actionHistory?.dataHash ?? keccak256(toUtf8Bytes(canonicalJson({ transactionHash: log.transactionHash, logIndex: log.index, payload })));
+  // A catch-up batch can contain multiple shipment updates or disputes. Match
+  // the event's occurrence in ledger order, never the latest matching action.
+  const actionEvents = await contract.queryFilter(contract.filters[name](BigInt(contractId)), 0, log.blockNumber);
+  const occurrence = actionEvents.filter((event) => event.blockNumber < log.blockNumber || event.index <= log.index).length - 1;
+  const actionHistory = history.filter((item) => Number(item.action) === actionIndex)[occurrence];
+  if (!actionHistory) throw new Error(`No on-chain history entry matches ${name} at ${log.transactionHash}:${log.index}`);
+  const dataHash = actionHistory.dataHash;
   const actorAddress = eventActor(name, args, await contract.getFunction("operator")());
   const inserted = await database.query(
     `INSERT INTO contract_events (contract_id, action, actor_address, occurred_at, data_hash, transaction_hash, block_number, log_index, payload)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
-     ON CONFLICT (transaction_hash, log_index) DO NOTHING`,
+     ON CONFLICT (transaction_hash, log_index) DO UPDATE SET data_hash = EXCLUDED.data_hash
+     WHERE contract_events.data_hash IS DISTINCT FROM EXCLUDED.data_hash`,
     [contractId, name, actorAddress, occurredAt, dataHash, log.transactionHash, log.blockNumber, log.index, JSON.stringify(payload)],
   );
   if (name === "ShipmentStatusUpdated") {

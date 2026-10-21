@@ -199,6 +199,7 @@ test(
     const cachedDemurrage = cachedDetail.json().history.find((event) => event.action === "DemurrageCalculated");
     assert.equal(cachedPenalty.details.secondsLate, String(13 * 3600));
     assert.equal(cachedDemurrage.details.heldSeconds, String(10 * 3600));
+    assert.deepEqual(cachedDetail.json().history.map((event) => event.dataHash), onChain[1].map((entry) => entry.dataHash), "each cached action keeps its own immutable chain history hash");
     const adminDetail = await app.inject({ method: "GET", url: `/contracts/${contractId}`, headers: adminHeaders });
     assert.equal(adminDetail.statusCode, 200);
     assert.equal(Object.hasOwn(adminDetail.json(), "terms"), false);

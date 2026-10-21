@@ -32,11 +32,11 @@ export function AppRoutes() {
           <Route element={<RouteTransition />}>
           <Route index element={<Navigate to="/overview" replace />} />
           <Route path="overview" element={<OverviewPage />} />
-          <Route path="orders" element={<PermissionPage path="/orders" title="Freight orders" />} />
+          <Route path="orders" element={<PermissionPage path="/orders" title="Freight orders"><Navigate to="/allocations" replace /></PermissionPage>} />
           <Route path="allocations" element={<PermissionPage path="/allocations" title="Allocations"><OptimizationPage /></PermissionPage>} />
           <Route path="contracts" element={<PermissionPage path="/contracts" title="Contracts"><ContractsPage /></PermissionPage>} />
           <Route path="contracts/:contractId" element={<PermissionPage path="/contracts" title="Contracts"><ContractsPage /></PermissionPage>} />
-          <Route path="audit" element={<PermissionPage path="/audit" title="Audit trail" />} />
+          <Route path="audit" element={<PermissionPage path="/audit" title="Audit trail"><Navigate to="/contracts" replace /></PermissionPage>} />
           <Route path="admin" element={<PermissionPage path="/admin" title="Administration"><AdminAccountsPage /></PermissionPage>} />
           <Route path="*" element={<Navigate to="/overview" replace />} />
           </Route>

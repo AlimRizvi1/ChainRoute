@@ -39,6 +39,7 @@ test(
       "004_event_sync_and_action_queue.sql",
       "005_saved_what_if_scenarios.sql",
       "006_account_registration.sql",
+      "007_replay_event_history_hashes.sql",
     ]);
     assert.deepEqual(await runMigrations(pool), []);
 
