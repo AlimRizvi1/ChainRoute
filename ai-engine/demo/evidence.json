@@ -1,0 +1,319 @@
+{
+  "evaluatedAt": "2026-10-21T08:19:10.465387+00:00",
+  "evaluation": {
+    "modelVersion": "logreg-fd10e2acfde0639b",
+    "trainingDataHash": "sha256:b7a614214577ab84d4ea1d96ba35b87abe1e113b76e19676f134761aac99eff4",
+    "dataSource": "synthetic_lognormal_transit_simulation",
+    "seed": 42,
+    "totalSamples": 30000,
+    "trainingSamples": 24000,
+    "testSamples": 6000,
+    "threshold": 0.5,
+    "probabilityMae": 0.009775544874902413,
+    "brierScore": 0.019175747325836927,
+    "maeTolerance": 0.1,
+    "accuracy": 0.9735,
+    "alwaysOnTimeAccuracy": 0.9091666666666667,
+    "onTimePrecision": 0.9818049490538574,
+    "onTimeRecall": 0.9891842346471127,
+    "lateRecall": 0.8165137614678899,
+    "confusionMatrix": {
+      "trueOnTime": 5396,
+      "trueLate": 445,
+      "falseOnTime": 100,
+      "falseLate": 59
+    },
+    "coefficients": {
+      "intercept": 0.08926747689743683,
+      "slackRatio": 7.7953638710017445,
+      "cargoVariability": -0.1665554777286779
+    },
+    "cargoVariability": {
+      "coal": 0.2,
+      "grain": 0.1,
+      "steel": 0.3
+    },
+    "limitations": [
+      "Synthetic holdout from the same simulator; no real railway test dataset.",
+      "Accuracy uses a 0.5 threshold; probability MAE is not classification accuracy.",
+      "The model uses a fixed synthetic departure: 2026-01-07T20:00:00Z.",
+      "No claim of production accuracy, temporal validation, or real-world calibration."
+    ]
+  },
+  "syntheticDeparture": "2026-01-07T20:00:00+00:00",
+  "recordedExamples": [
+    {
+      "slackRatio": 0.0,
+      "request": {
+        "orders": [
+          {
+            "orderId": "ML-DEMO",
+            "cargoType": "grain",
+            "quantityTonnes": 10.0,
+            "destination": "Port-A",
+            "priority": 1,
+            "deadline": "2026-01-08T00:00:00Z"
+          }
+        ],
+        "wagons": [
+          {
+            "wagonId": "DEMO-WAGON",
+            "capacityTonnes": 20.0,
+            "wagonType": "covered",
+            "location": "Yard-0",
+            "available": true
+          }
+        ],
+        "routes": [
+          {
+            "routeId": "DEMO-ROUTE",
+            "origin": "Yard-0",
+            "destination": "Port-A",
+            "distanceKm": 100.0,
+            "transitTimeSeconds": 14400
+          }
+        ],
+        "weights": {
+          "onTime": 1.0,
+          "cost": 0.0,
+          "utilization": 0.0
+        },
+        "timeBudgetSeconds": 0.05
+      },
+      "response": {
+        "planId": "plan-84beab0962be4055a8eddf6e4a898506",
+        "runId": "84beab0962be4055a8eddf6e4a898506",
+        "score": 1.259072505264674,
+        "assignments": [
+          {
+            "orderId": "ML-DEMO",
+            "cargoType": "grain",
+            "wagonIds": [
+              "DEMO-WAGON"
+            ],
+            "route": {
+              "routeId": "DEMO-ROUTE",
+              "origin": "Yard-0",
+              "destination": "Port-A"
+            },
+            "quantityTonnes": 10.0,
+            "departAt": "2026-01-07T20:00:00Z",
+            "eta": "2026-01-08T00:00:00Z",
+            "onTimeProbability": 0.5181450105293481,
+            "score": 0.5181450105293481
+          }
+        ],
+        "metrics": {
+          "utilizationPercent": 50.0,
+          "estimatedCostPaise": "25000",
+          "distanceKm": 100.0,
+          "onTimeProbability": 0.5181450105293481
+        },
+        "unassignedOrders": [],
+        "alternatives": [],
+        "runMetadata": {
+          "generatedAt": "2026-10-21T08:19:10.343391Z",
+          "durationMs": 29,
+          "algorithm": "ortools-cp-sat-v1",
+          "weights": {
+            "onTime": 1.0,
+            "cost": 0.0,
+            "utilization": 0.0
+          },
+          "inputHash": "sha256:6eff18218045b384e28bb89d127ceee5ce6c72a711eeb6c17843596f8fa97aee",
+          "inputCounts": {
+            "orders": 1,
+            "wagons": 1,
+            "routes": 1
+          },
+          "prediction": {
+            "method": "logistic_regression",
+            "modelVersion": "logreg-fd10e2acfde0639b"
+          }
+        }
+      }
+    },
+    {
+      "slackRatio": 0.25,
+      "request": {
+        "orders": [
+          {
+            "orderId": "ML-DEMO",
+            "cargoType": "grain",
+            "quantityTonnes": 10.0,
+            "destination": "Port-A",
+            "priority": 1,
+            "deadline": "2026-01-08T01:00:00Z"
+          }
+        ],
+        "wagons": [
+          {
+            "wagonId": "DEMO-WAGON",
+            "capacityTonnes": 20.0,
+            "wagonType": "covered",
+            "location": "Yard-0",
+            "available": true
+          }
+        ],
+        "routes": [
+          {
+            "routeId": "DEMO-ROUTE",
+            "origin": "Yard-0",
+            "destination": "Port-A",
+            "distanceKm": 100.0,
+            "transitTimeSeconds": 14400
+          }
+        ],
+        "weights": {
+          "onTime": 1.0,
+          "cost": 0.0,
+          "utilization": 0.0
+        },
+        "timeBudgetSeconds": 0.05
+      },
+      "response": {
+        "planId": "plan-59fef9409cd945c9a62f87d27e565fbf",
+        "runId": "59fef9409cd945c9a62f87d27e565fbf",
+        "score": 1.441515579103785,
+        "assignments": [
+          {
+            "orderId": "ML-DEMO",
+            "cargoType": "grain",
+            "wagonIds": [
+              "DEMO-WAGON"
+            ],
+            "route": {
+              "routeId": "DEMO-ROUTE",
+              "origin": "Yard-0",
+              "destination": "Port-A"
+            },
+            "quantityTonnes": 10.0,
+            "departAt": "2026-01-07T20:00:00Z",
+            "eta": "2026-01-08T00:00:00Z",
+            "onTimeProbability": 0.8830311582075702,
+            "score": 0.8830311582075702
+          }
+        ],
+        "metrics": {
+          "utilizationPercent": 50.0,
+          "estimatedCostPaise": "25000",
+          "distanceKm": 100.0,
+          "onTimeProbability": 0.8830311582075702
+        },
+        "unassignedOrders": [],
+        "alternatives": [],
+        "runMetadata": {
+          "generatedAt": "2026-10-21T08:19:10.402582Z",
+          "durationMs": 3,
+          "algorithm": "ortools-cp-sat-v1",
+          "weights": {
+            "onTime": 1.0,
+            "cost": 0.0,
+            "utilization": 0.0
+          },
+          "inputHash": "sha256:4a1109c7d065af4e7ac8f80e0634320a4c91dc9167ee446145efaa5f0410b4e2",
+          "inputCounts": {
+            "orders": 1,
+            "wagons": 1,
+            "routes": 1
+          },
+          "prediction": {
+            "method": "logistic_regression",
+            "modelVersion": "logreg-fd10e2acfde0639b"
+          }
+        }
+      }
+    },
+    {
+      "slackRatio": 0.5,
+      "request": {
+        "orders": [
+          {
+            "orderId": "ML-DEMO",
+            "cargoType": "grain",
+            "quantityTonnes": 10.0,
+            "destination": "Port-A",
+            "priority": 1,
+            "deadline": "2026-01-08T02:00:00Z"
+          }
+        ],
+        "wagons": [
+          {
+            "wagonId": "DEMO-WAGON",
+            "capacityTonnes": 20.0,
+            "wagonType": "covered",
+            "location": "Yard-0",
+            "available": true
+          }
+        ],
+        "routes": [
+          {
+            "routeId": "DEMO-ROUTE",
+            "origin": "Yard-0",
+            "destination": "Port-A",
+            "distanceKm": 100.0,
+            "transitTimeSeconds": 14400
+          }
+        ],
+        "weights": {
+          "onTime": 1.0,
+          "cost": 0.0,
+          "utilization": 0.0
+        },
+        "timeBudgetSeconds": 0.05
+      },
+      "response": {
+        "planId": "plan-648fe8c6cbce40b7a165fb35d1cd5bbc",
+        "runId": "648fe8c6cbce40b7a165fb35d1cd5bbc",
+        "score": 1.4907407584716716,
+        "assignments": [
+          {
+            "orderId": "ML-DEMO",
+            "cargoType": "grain",
+            "wagonIds": [
+              "DEMO-WAGON"
+            ],
+            "route": {
+              "routeId": "DEMO-ROUTE",
+              "origin": "Yard-0",
+              "destination": "Port-A"
+            },
+            "quantityTonnes": 10.0,
+            "departAt": "2026-01-07T20:00:00Z",
+            "eta": "2026-01-08T00:00:00Z",
+            "onTimeProbability": 0.9814815169433432,
+            "score": 0.9814815169433432
+          }
+        ],
+        "metrics": {
+          "utilizationPercent": 50.0,
+          "estimatedCostPaise": "25000",
+          "distanceKm": 100.0,
+          "onTimeProbability": 0.9814815169433432
+        },
+        "unassignedOrders": [],
+        "alternatives": [],
+        "runMetadata": {
+          "generatedAt": "2026-10-21T08:19:10.437807Z",
+          "durationMs": 4,
+          "algorithm": "ortools-cp-sat-v1",
+          "weights": {
+            "onTime": 1.0,
+            "cost": 0.0,
+            "utilization": 0.0
+          },
+          "inputHash": "sha256:9584f859b155df2707a5da9f54d5193e9b81cc35631de0546b2cb91e12c1357d",
+          "inputCounts": {
+            "orders": 1,
+            "wagons": 1,
+            "routes": 1
+          },
+          "prediction": {
+            "method": "logistic_regression",
+            "modelVersion": "logreg-fd10e2acfde0639b"
+          }
+        }
+      }
+    }
+  ]
+}

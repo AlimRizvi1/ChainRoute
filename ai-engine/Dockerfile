@@ -16,6 +16,9 @@ COPY ai-engine/ranking.py .
 COPY ai-engine/run_log.py .
 COPY ai-engine/search_agent.py .
 COPY ai-engine/synthetic_data.py .
+COPY ai-engine/train_prediction_model.py .
+COPY ai-engine/demonstrate_ml.py .
+COPY ai-engine/demo ./demo
 
 EXPOSE 8000
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>ML demonstration · ChainRoute</title>
+  <link rel="stylesheet" href="demo.css">
+  <script type="module" src="demo.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to demonstration</a>
+  <header>
+    <a class="brand" href="/demo/">ChainRoute <span>ML demonstration</span></a>
+    <nav aria-label="Demonstration navigation"><a href="#experiment">Try the model</a><a href="#evaluation">View accuracy</a><a href="/docs">API docs</a></nav>
+  </header>
+  <main id="main">
+    <section class="intro">
+      <h1>Will the freight arrive on time?</h1>
+      <p>One trained logistic regression model estimates delivery probability. A constraint solver then builds feasible wagon allocations and ranks plans using on-time, cost, and utilization weights.</p>
+      <p class="notice">Synthetic demonstration. The evaluation uses simulated transit delays, not real railway deliveries. No orders or contracts are created in the platform database.</p>
+    </section>
+    <section id="experiment" aria-labelledby="experiment-heading">
+      <h2 id="experiment-heading">Run a live prediction</h2>
+      <p>A 10-tonne order, one compatible 20-tonne wagon, and a four-hour route. Change the spare time before the deadline, then run the real allocation API.</p>
+      <div class="experiment">
+        <form id="prediction-form">
+          <label for="cargo">Cargo type</label>
+          <select id="cargo" name="cargo"><option value="grain">Grain · variability 0.10</option><option value="coal">Coal · variability 0.20</option><option value="steel">Steel · variability 0.30</option></select>
+          <label for="slack">Time remaining after planned arrival</label>
+          <select id="slack" name="slack"><option value="0">No spare time · slack ratio 0.00</option><option value="0.25">1 hour spare · slack ratio 0.25</option><option value="0.5">2 hours spare · slack ratio 0.50</option></select>
+          <p class="support">Fixed simulation departure: 7 Jan 2026, 20:00 UTC. Planned arrival: 8 Jan, 00:00 UTC. The API currently uses this synthetic clock.</p>
+          <button id="run" type="submit">Run live prediction</button>
+          <p id="live-status" role="status" aria-live="polite">Ready. Select a scenario and run it.</p>
+        </form>
+        <div class="result" aria-busy="false" id="live-result">
+          <h3>On-time probability</h3>
+          <p id="probability" class="probability">Awaiting a run</p>
+          <p id="scenario">This is a probability for one assignment, not the model’s test accuracy.</p>
+          <dl id="live-facts" hidden></dl>
+          <a id="trace" hidden>Open this run’s audit record</a>
+        </div>
+      </div>
+      <details><summary>Inspect the live request and response</summary><h3>Request to POST /v1/optimize</h3><pre id="request">Run a prediction to inspect its request.</pre><h3>Response from the running engine</h3><pre id="response">No response yet.</pre></details>
+    </section>
+    <section id="evaluation" aria-labelledby="evaluation-heading">
+      <h2 id="evaluation-heading">How accurate is the model?</h2>
+      <p>Reproduced evaluation of the saved model on the original held-out split. The model is frozen during evaluation; this page does not retrain it.</p>
+      <p id="evaluation-status" role="status">Loading the evaluation evidence…</p>
+      <div id="evaluation-body" hidden>
+        <dl class="dataset"><div><dt>Generated samples</dt><dd id="samples"></dd></div><div><dt>Training / test split</dt><dd id="split"></dd></div><div><dt>Random seed</dt><dd id="seed"></dd></div></dl>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="Model evaluation metrics">
+          <table><caption>Held-out results · lower error is better</caption><thead><tr><th scope="col">Measure</th><th scope="col">Result</th><th scope="col">What it means</th></tr></thead><tbody>
+            <tr><th scope="row">Classification accuracy</th><td id="accuracy"></td><td>Correct on-time / late labels at a 0.50 probability threshold.</td></tr>
+            <tr><th scope="row">Always-on-time baseline</th><td id="baseline"></td><td>Accuracy from predicting every test delivery will be on time.</td></tr>
+            <tr><th scope="row">Probability MAE</th><td id="mae"></td><td>Mean absolute error against the simulator’s analytical probability. This is not “1 − accuracy”.</td></tr>
+            <tr><th scope="row">Brier score</th><td id="brier"></td><td>Mean squared probability error against actual simulated binary outcomes.</td></tr>
+            <tr><th scope="row">Late-delivery recall</th><td id="late-recall"></td><td>Share of truly late simulated deliveries identified as late.</td></tr>
+          </tbody></table>
+        </div>
+        <p id="comparison" class="notice"></p>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="Confusion matrix">
+          <table class="confusion"><caption>Confusion matrix · test deliveries at threshold 0.50</caption><thead><tr><td></td><th scope="col">Predicted on time</th><th scope="col">Predicted late</th></tr></thead><tbody><tr><th scope="row">Actually on time</th><td id="tp"></td><td id="fn"></td></tr><tr><th scope="row">Actually late</th><td id="fp"></td><td id="tn"></td></tr></tbody></table>
+        </div>
+        <p class="support">Evaluated: <span id="evaluated"></span>. Model: <code id="model-version"></code>. <a href="evidence.json" download>Download evaluation and recorded API examples (JSON)</a>.</p>
+      </div>
+    </section>
+    <section aria-labelledby="explain-heading">
+      <h2 id="explain-heading">Explain the AI in three steps</h2>
+      <ol class="explanation">
+        <li><h3>Learn from simulated trips</h3><p>Generate 30,000 lognormal transit outcomes for grain, coal, and steel. Train logistic regression on 24,000 examples; keep 6,000 separate for evaluation.</p></li>
+        <li><h3>Estimate on-time probability</h3><p>The inputs are deadline slack divided by route transit time, and a fixed variability value for the cargo. Logistic regression converts the learned weighted sum into a probability between 0 and 1.</p></li>
+        <li><h3>Allocate and rank</h3><p>Google OR-Tools CP-SAT searches feasible wagon assignments under capacity, compatibility, route, and timing constraints. The engine applies ML probabilities and ranks candidate plans with the chosen weights. CP-SAT is an optimizer, not a second trained model.</p></li>
+      </ol>
+      <details><summary>See the learned equation and project limitations</summary><pre id="equation">Loading the saved coefficients…</pre><p>The JSON artifact contains the learned coefficients and model version. Inference runs in Python without retraining. If the model is missing or cargo is unknown, the prediction layer has a labeled heuristic fallback.</p><p>This holdout comes from the same simulator as training. Real delivery history, validation on future trips, and probability calibration on field data are still needed before claiming operational accuracy. Today’s dates are not suitable for this fixed-clock demo: they can saturate predictions near 100%.</p></details>
+    </section>
+  </main>
+  <footer>ChainRoute · Synthetic ML teaching demonstration · <a href="/health">Engine health</a></footer>
+  <noscript><p class="notice">Enable JavaScript for the live demonstration and evaluation tables. The raw <a href="evidence.json">evaluation JSON</a> and <a href="/docs">API documentation</a> remain available.</p></noscript>
+</body>
+</html>

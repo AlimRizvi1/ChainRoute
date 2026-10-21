@@ -1,15 +1,18 @@
 import json
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from allocator import build_allocation_plan
 from models import OptimizationRunRecord, OptimizeRequest
 from run_log import get_run_record
 
 app = FastAPI(title="ChainRoute AI/ML Allocation Engine", version="1.0.0")
 logger = logging.getLogger(__name__)
+app.mount("/demo", StaticFiles(directory=Path(__file__).with_name("demo"), html=True), name="ml-demo")
 
 
 @app.exception_handler(RequestValidationError)

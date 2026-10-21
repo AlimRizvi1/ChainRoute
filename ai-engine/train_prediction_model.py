@@ -17,7 +17,8 @@ MAE_TOLERANCE = 0.10
 CARGO_VARIABILITY = {"grain": 0.10, "coal": 0.20, "steel": 0.30}
 
 
-def train_model(output_path: Path = MODEL_PATH) -> dict[str, Any]:
+def generate_training_data() -> tuple[list[list[float]], list[int], list[float]]:
+    """Reproduce the original simulation; evaluation must use this exact dataset."""
     rng = random.Random(SEED)
     features: list[list[float]] = []
     outcomes: list[int] = []
@@ -37,6 +38,12 @@ def train_model(output_path: Path = MODEL_PATH) -> dict[str, Any]:
         features.append([slack_ratio, variability])
         outcomes.append(int(on_time))
         expected_probabilities.append(expected_probability)
+
+    return features, outcomes, expected_probabilities
+
+
+def train_model(output_path: Path = MODEL_PATH) -> dict[str, Any]:
+    features, outcomes, expected_probabilities = generate_training_data()
 
     (
         train_features,

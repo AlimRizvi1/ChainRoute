@@ -1,0 +1,60 @@
+@font-face { font-family: Manrope; src: url("fonts/manrope.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+@font-face { font-family: "Bowlby One SC"; src: url("fonts/bowlby.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+:root { --ink: #18261f; --stone: #e7e2d6; --paper: #f8f6ef; --brass: #d29a28; --rust: #b44b38; --muted: #45554b; --line: #b5bcaf; font-family: Manrope, sans-serif; color: var(--ink); background: var(--stone); font-synthesis: none; line-height: 1.65; scrollbar-color: var(--muted) var(--stone); }
+* { box-sizing: border-box; }
+body { margin: 0; }
+::selection { background: var(--brass); color: var(--ink); }
+a { color: inherit; text-underline-offset: .22em; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--rust); outline-offset: 4px; }
+.skip { position: fixed; top: -100px; left: 12px; background: var(--paper); padding: 12px; z-index: 2; }
+.skip:focus { top: 12px; }
+header { background: var(--ink); color: var(--paper); padding: 22px max(24px, calc((100vw - 1140px) / 2)); display: flex; align-items: center; gap: 24px; justify-content: space-between; }
+.brand { font-size: 1.35rem; font-weight: 800; text-decoration: none; }
+.brand span { display: block; font-size: .82rem; font-weight: 500; color: var(--stone); }
+nav { display: flex; flex-wrap: wrap; gap: 12px 24px; font-size: .9rem; }
+main { max-width: 1140px; margin: auto; padding: 44px 24px 64px; }
+h1, h2 { font-family: "Bowlby One SC", sans-serif; font-weight: 400; line-height: 1.18; text-wrap: balance; }
+h1 { font-size: clamp(2.3rem, 5vw, 4rem); max-width: 20ch; margin: 0 0 24px; }
+h2 { font-size: clamp(1.65rem, 3vw, 2.3rem); margin: 0 0 16px; }
+h3 { font-size: 1rem; margin: 0 0 8px; }
+p { max-width: 74ch; margin: 0 0 20px; }
+.intro { padding-bottom: 16px; }
+section + section { border-top: 1px solid var(--line); padding-top: 36px; margin-top: 36px; scroll-margin-top: 24px; }
+.notice { background: var(--paper); padding: 16px 20px; }
+.support { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+.experiment { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin: 28px 0; }
+label { display: block; font-weight: 700; margin-bottom: 8px; }
+select, button { font: inherit; border: 1px solid var(--muted); border-radius: 3px; padding: 12px; min-height: 48px; width: 100%; }
+select { background: var(--paper); color: var(--ink); margin-bottom: 22px; caret-color: var(--rust); }
+button { background: var(--brass); color: var(--ink); border-color: #8b6413; font-weight: 800; cursor: pointer; transition: background-color 150ms ease-out; }
+button:hover { background: #dfab3f; }
+button:disabled { cursor: wait; background: var(--stone); color: var(--muted); }
+#live-status { font-size: .9rem; margin: 12px 0 0; }
+.result { padding: 24px; background: var(--ink); color: var(--paper); align-self: start; overflow-wrap: anywhere; }
+.result :focus-visible { outline-color: var(--brass); }
+.probability { font-size: clamp(1.75rem, 4vw, 3.2rem); font-weight: 800; font-variant-numeric: tabular-nums; margin-bottom: 12px; line-height: 1.2; }
+dl { margin: 0 0 20px; }
+dt { font-size: .85rem; }
+dd { margin: 0 0 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+details { margin-top: 22px; }
+summary { cursor: pointer; font-weight: 700; padding: 12px 0; }
+details p:first-of-type, details pre { margin-top: 16px; }
+pre { font-size: .85rem; line-height: 1.6; background: var(--paper); padding: 20px; max-width: 100%; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dataset { display: flex; gap: 20px 48px; flex-wrap: wrap; margin-top: 28px; }
+.dataset dd { font-size: 1.3rem; }
+.table-scroll { max-width: 100%; overflow: auto; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; background: var(--paper); font-size: .92rem; }
+caption { text-align: left; font-weight: 700; margin-bottom: 12px; }
+th, td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead { background: var(--ink); color: var(--paper); }
+tbody td:nth-child(2) { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.confusion { max-width: 720px; }
+code { font-size: .85rem; overflow-wrap: anywhere; }
+.explanation { padding-left: 24px; max-width: 78ch; }
+.explanation li { padding-left: 8px; margin: 24px 0; }
+.explanation li::marker { font-weight: 800; }
+footer { max-width: 1140px; margin: auto; padding: 24px; border-top: 1px solid var(--line); font-size: .85rem; }
+[hidden] { display: none !important; }
+@media (max-width: 700px) { header { align-items: start; flex-direction: column; gap: 16px; } main { padding-top: 32px; } .experiment { grid-template-columns: 1fr; gap: 24px; } th, td { padding: 10px; } .table-scroll table { min-width: 520px; } .result { padding: 20px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
