@@ -1,6 +1,7 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { OrderEntryForm } from "../components/OrderEntryForm";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { acceptPlan, createOrder, runOptimization, type AcceptInput, type AllocationPlan, type OrderInput, type Weights } from "../api/optimization";
+import { acceptPlan, runOptimization, type AcceptInput, type AllocationPlan, type Weights } from "../api/optimization";
 import { ApiError } from "../api/errors";
 import { downloadCsv, planCsv, safeCsvFilename } from "../api/csv";
 import { useAuth } from "../auth/context";
@@ -16,10 +17,6 @@ const REASONS: Record<string, string> = {
   TIME_BUDGET_EXCEEDED: "The solver reached its time limit before assigning this order.",
 };
 
-function defaultDeadline() {
-  return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
-}
-
 export function OptimizationPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
@@ -27,11 +24,8 @@ export function OptimizationPage() {
   const [plan, setPlan] = useState<AllocationPlan | null>(null);
   const [previous, setPrevious] = useState<AllocationPlan | null>(null);
   const [busy, setBusy] = useState(false);
-  const [pendingOrder, setPendingOrder] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [orderNotice, setOrderNotice] = useState<string | null>(null);
-  const [orderError, setOrderError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
   const [acceptanceNotice, setAcceptanceNotice] = useState<string | null>(null);
   const [acceptanceQueued, setAcceptanceQueued] = useState(false);
@@ -52,28 +46,6 @@ export function OptimizationPage() {
 
   function updateWeight(key: keyof Weights, value: number) {
     setWeights((current) => ({ ...current, [key]: value }));
-  }
-
-  async function submitOrder(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (pendingOrder) return;
-    const formElement = event.currentTarget;
-    const form = new FormData(formElement);
-    const input: OrderInput = {
-      cargoType: String(form.get("cargoType") ?? "").trim(),
-      quantityTonnes: Number(form.get("quantityTonnes")),
-      destination: String(form.get("destination") ?? "").trim(),
-      priority: Number(form.get("priority")),
-      deadline: new Date(String(form.get("deadline"))).toISOString(),
-    };
-    setPendingOrder(true); setOrderError(null); setOrderNotice(null);
-    try {
-      const result = await createOrder(input);
-      setOrderNotice(`Order ${result.orderId} is in the queue. Run an allocation when you’re ready.`);
-      formElement.reset();
-    } catch (cause) {
-      setOrderError(cause instanceof ApiError ? cause.message : "Order could not be submitted. Try again.");
-    } finally { setPendingOrder(false); }
   }
 
   async function run() {
@@ -132,19 +104,8 @@ export function OptimizationPage() {
       <span className="optimization-ticket">TRACK 1 <i>↗</i></span>
     </header>
 
-    <section className="optimization-panel order-panel" aria-labelledby="new-order-title">
-      <div className="panel-heading"><div><p className="eyebrow">FIRST, THE LOAD</p><h2 id="new-order-title">Add a freight order</h2></div><span className="optimization-step">01</span></div>
-      <form className="freight-order-form" onSubmit={submitOrder}>
-        <label>Cargo type<input name="cargoType" placeholder="e.g. grain" required maxLength={128} /></label>
-        <label>Quantity <span className="unit">tonnes</span><input name="quantityTonnes" type="number" min="0.001" step="0.001" placeholder="40" required /></label>
-        <label>Destination<input name="destination" placeholder="e.g. Port-A" required maxLength={256} /></label>
-        <label>Priority<select name="priority" defaultValue="2"><option value="1">Urgent</option><option value="2">Standard</option><option value="3">Flexible</option></select></label>
-        <label>Required by<input name="deadline" type="datetime-local" min={defaultDeadline()} defaultValue={defaultDeadline()} required /></label>
-        <button className="primary-button" disabled={pendingOrder} type="submit">{pendingOrder ? "Submitting…" : "Queue order"}<span aria-hidden="true"> ↗</span></button>
-      </form>
-      {orderNotice && <p className="optimization-notice" role="status">{orderNotice}</p>}
-      {orderError && <p className="form-error" role="alert">{orderError}</p>}
-    </section>
+    <p className="workflow-links"><Link to="/orders">View freight orders</Link><Link to="/ai-lab">See how CP-SAT and ML work</Link></p>
+    <OrderEntryForm />
 
     <section className="optimization-panel weight-panel" aria-labelledby="weight-title">
       <div className="panel-heading"><div><p className="eyebrow">THE TRADE-OFF</p><h2 id="weight-title">Tune the priorities</h2></div><span className="optimization-step">02</span></div>
@@ -189,6 +150,7 @@ function PlanResult({ plan, previous, exportingDisabled, carrierAddress, setCarr
       <Metric label="Route distance" value={`${metrics.distanceKm.toLocaleString()} km`} mark="↗" />
       <Metric label="On-time chance" value={formatPercent(metrics.onTimeProbability)} mark="◷" />
     </div>
+    <div className="plan-explanation"><h3>How this plan was produced</h3><p>The allocator compares constraint-based CP-SAT candidates with greedy candidates, preserves order priority, then ranks feasible plans using your on-time, cost and utilization weights. ML supplies the on-time probabilities used in that ranking.</p><p>Engine: <strong>{plan.runMetadata.algorithm}</strong> · Prediction: <strong>{plan.runMetadata.prediction?.method ?? "Not reported"}</strong> · Model: <strong>{plan.runMetadata.prediction?.modelVersion ?? "Not reported"}</strong>. Assigned {plan.assignments.length} of {plan.assignments.length + plan.unassignedOrders.length} orders. A bounded search does not guarantee a globally optimal result.</p><Link to="/ai-lab">Run the CP-SAT and ML demonstrations</Link></div>
     {previous && <div className="what-if-comparison" aria-live="polite"><strong>Changed from the previous run</strong>{changed.map((item) => <span key={item.label}>{item.label}: <b>{item.before}</b><i aria-hidden="true">→</i><b>{item.value}</b></span>)}</div>}
     <div className="plan-result-grid">
       <section className="optimization-panel assignment-panel"><div className="panel-heading"><div><p className="eyebrow">WAGON SHEET</p><h3>Assignments</h3></div><span className="panel-count">{plan.assignments.length} loads</span></div>

@@ -1,0 +1,79 @@
+{
+  "scenario": "Scarce compatible wagon at a route origin: the shortest greedy choice strands the second order, while CP-SAT assigns both and improves plan-level on-time probability.",
+  "request": {
+    "orders": [
+      {
+        "orderId": "ORD-FLEX",
+        "cargoType": "grain",
+        "quantityTonnes": 20,
+        "destination": "Port-A",
+        "priority": 1,
+        "deadline": "2026-01-08T20:00:00Z"
+      },
+      {
+        "orderId": "ORD-ONLY",
+        "cargoType": "grain",
+        "quantityTonnes": 20,
+        "destination": "Port-B",
+        "priority": 1,
+        "deadline": "2026-01-08T20:00:00Z"
+      }
+    ],
+    "wagons": [
+      {
+        "wagonId": "WAG-A",
+        "capacityTonnes": 20,
+        "wagonType": "covered",
+        "location": "Yard-A",
+        "available": true
+      },
+      {
+        "wagonId": "WAG-B",
+        "capacityTonnes": 20,
+        "wagonType": "covered",
+        "location": "Yard-B",
+        "available": true
+      }
+    ],
+    "routes": [
+      {
+        "routeId": "RTE-FLEX-A",
+        "origin": "Yard-A",
+        "destination": "Port-A",
+        "distanceKm": 20,
+        "transitTimeSeconds": 10800
+      },
+      {
+        "routeId": "RTE-FLEX-B",
+        "origin": "Yard-B",
+        "destination": "Port-A",
+        "distanceKm": 10,
+        "transitTimeSeconds": 3600
+      },
+      {
+        "routeId": "RTE-ONLY-B",
+        "origin": "Yard-B",
+        "destination": "Port-B",
+        "distanceKm": 10,
+        "transitTimeSeconds": 3600
+      }
+    ],
+    "weights": {
+      "onTime": 1,
+      "cost": 0,
+      "utilization": 0
+    },
+    "timeBudgetSeconds": 3.0
+  },
+  "phase4Baseline": {
+    "assignedOrderIds": ["ORD-FLEX"],
+    "routeForOrdFlex": "RTE-FLEX-B"
+  },
+  "phase6Search": {
+    "assignedOrderIds": ["ORD-FLEX", "ORD-ONLY"],
+    "routes": {
+      "ORD-FLEX": "RTE-FLEX-A",
+      "ORD-ONLY": "RTE-ONLY-B"
+    }
+  }
+}

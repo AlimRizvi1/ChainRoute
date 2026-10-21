@@ -112,6 +112,48 @@ paths:
                   expiresAt: { type: string, format: date-time }
         "400": { $ref: "#/components/responses/BadRequest" }
   /orders:
+    get:
+      tags: [Orders and plans]
+      summary: List freight orders
+      description: "Shippers see their own orders; Administrators see all orders. Newest first, including Pending and Planned records."
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [Pending, Planned] }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 100000, default: 0 }
+      responses:
+        "200":
+          description: Paginated order register.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, nextOffset]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [orderId, cargoType, quantityTonnes, destination, priority, deadline, status, createdAt]
+                      properties:
+                        orderId: { type: string }
+                        cargoType: { type: string }
+                        quantityTonnes: { type: number }
+                        destination: { type: string }
+                        priority: { type: integer, minimum: 1, maximum: 3 }
+                        deadline: { type: string, format: date-time }
+                        status: { type: string, enum: [Pending, Planned] }
+                        createdAt: { type: string, format: date-time }
+                  total: { type: integer }
+                  nextOffset: { type: [integer, "null"] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Orders and plans]
       summary: Submit a freight order
@@ -136,6 +178,49 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /ai/demonstrations/evaluation:
+    get:
+      tags: [Orders and plans]
+      summary: Read the saved synthetic ML evaluation
+      description: "All authenticated roles. Model version, dataset provenance, holdout metrics and confusion matrix; not a new evaluation or a real-world accuracy claim."
+      responses:
+        "200": { description: Frozen evaluation JSON served by the AI engine. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { description: AI engine unavailable. }
+  /ai/demonstrations/run:
+    post:
+      tags: [Orders and plans]
+      summary: Run a fixed synthetic CP-SAT or ML teaching case
+      description: "All authenticated roles. Uses the production allocator/predictor and records an AI run. Does not create business orders, saved platform plans or contracts. CP-SAT uses a three-second bounded search; results depend on the live solver, not canned output."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [kind]
+              properties:
+                kind: { type: string, enum: [cp-sat, ml] }
+                cargo: { type: string, enum: [grain, coal, steel], default: grain }
+                slackRatio: { type: number, enum: [0, 0.25, 0.5], default: 0 }
+      responses:
+        "200":
+          description: Synthetic input, live allocation plan and optional greedy baseline.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [synthetic, kind, request, plan, baseline]
+                properties:
+                  synthetic: { const: true }
+                  kind: { type: string, enum: [cp-sat, ml] }
+                  request: { type: object }
+                  plan: { type: object }
+                  baseline: { type: [object, "null"] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { description: AI engine unavailable. }
   /optimizations/run:
     post:
       tags: [Orders and plans]

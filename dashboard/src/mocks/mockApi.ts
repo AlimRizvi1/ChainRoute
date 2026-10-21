@@ -12,6 +12,7 @@ const demoRoles: Record<string, Role> = {
 };
 let mockRunNumber = 0;
 let mockOrderNumber = 0;
+const mockOrders = plentifulDataset.orders.map(order => ({ ...order, status: "Pending", createdAt: "2026-01-07T20:00:00Z" }));
 let mockContracts: Array<Record<string, any>> = [
   { contractId: "2048", planId: "plan-demo-0001", state: "InTransit", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "232600000", slaDeadline: "2026-11-02T18:00:00Z" },
   { contractId: "2047", planId: "plan-demo-0002", state: "Booked", shipperId: "mock-shipper", carrierId: "mock-carrier", freightValuePaise: "184000000", slaDeadline: "2026-11-04T18:00:00Z" },
@@ -119,11 +120,17 @@ export async function mockRequest(path: string, request: MockRequest): Promise<R
     return json({ contractId: contract.contractId, state: contract.state, ...(actionMatch[2] === "confirm-delivery" ? { onTime: false, secondsLate: 3600, penaltyPaise: "150000", demurragePaise: "24000", netPaymentPaise: "2326000" } : {}) });
   }
   if (cleanPath === "/orders" && request.method === "GET") {
-    return json({ items: plentifulDataset.orders, nextCursor: null, sampleData: true });
+    const query = new URLSearchParams(path.split("?")[1]);
+    const offset = Number(query.get("offset") ?? 0);
+    const limit = Number(query.get("limit") ?? 50);
+    const orders = mockOrders.filter(order => !query.get("status") || order.status === query.get("status"));
+    return json({ items: orders.slice(offset, offset + limit), total: orders.length, nextOffset: offset + limit < orders.length ? offset + limit : null, sampleData: true });
   }
   if (cleanPath === "/orders" && request.method === "POST") {
     mockOrderNumber += 1;
-    return json({ orderId: `ORD-MOCK-${String(mockOrderNumber).padStart(3, "0")}`, status: "Pending" }, 201);
+    const orderId = `ORD-MOCK-${String(mockOrderNumber).padStart(3, "0")}`;
+    mockOrders.unshift({ ...(request.body as typeof mockOrders[number]), orderId, status: "Pending", createdAt: new Date().toISOString() });
+    return json({ orderId, status: "Pending" }, 201);
   }
   if (cleanPath === "/optimizations/run" && request.method === "POST") {
     mockRunNumber += 1;

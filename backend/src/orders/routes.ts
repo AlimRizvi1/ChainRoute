@@ -81,6 +81,36 @@ export async function registerOrderRoutes(
   aiEngineUrl: string,
   optimizationTimeoutMs: number,
 ): Promise<void> {
+  app.get<{ Querystring: { status?: string; limit?: number; offset?: number } }>(
+    "/orders",
+    { config: { permission: "orders.create" }, schema: { querystring: {
+      type: "object", additionalProperties: false, properties: {
+        status: { type: "string", enum: ["Pending", "Planned"] },
+        limit: { type: "integer", minimum: 1, maximum: 100, default: 50 },
+        offset: { type: "integer", minimum: 0, maximum: 100000, default: 0 },
+      },
+    } } },
+    async (request, reply) => {
+      const actor = request.actor!;
+      const limit = request.query.limit ?? 50;
+      const offset = request.query.offset ?? 0;
+      const result = await database.query(
+        `SELECT order_id, cargo_type, quantity_tonnes::float8, destination, priority, deadline, status, created_at,
+                count(*) OVER()::int AS total
+         FROM orders WHERE ($1::text = 'Administrator' OR created_by = $2::uuid)
+           AND ($3::text IS NULL OR status = $3)
+         ORDER BY created_at DESC, order_id DESC LIMIT $4 OFFSET $5`,
+        [actor.role, actor.userId, request.query.status ?? null, limit, offset],
+      );
+      const total = result.rows[0]?.total ?? 0;
+      return reply.code(200).send({ items: result.rows.map((row) => ({
+        orderId: row.order_id, cargoType: row.cargo_type, quantityTonnes: row.quantity_tonnes,
+        destination: row.destination, priority: row.priority, deadline: row.deadline.toISOString(),
+        status: row.status, createdAt: row.created_at.toISOString(),
+      })), total, nextOffset: offset + result.rows.length < total ? offset + limit : null });
+    },
+  );
+
   app.post<{ Body: OrderInput }>(
     "/orders",
     {

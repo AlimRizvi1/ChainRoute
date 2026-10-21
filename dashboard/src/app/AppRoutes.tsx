@@ -1,3 +1,5 @@
+import { OrdersPage } from "./OrdersPage";
+import { AiLabPage } from "./AiLabPage";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate } from "react-router";
 import { API_MODE } from "../api/client";
@@ -32,7 +34,8 @@ export function AppRoutes() {
           <Route element={<RouteTransition />}>
           <Route index element={<Navigate to="/overview" replace />} />
           <Route path="overview" element={<OverviewPage />} />
-          <Route path="orders" element={<PermissionPage path="/orders" title="Freight orders"><Navigate to="/allocations" replace /></PermissionPage>} />
+          <Route path="orders" element={<PermissionPage path="/orders" title="Freight orders"><OrdersPage /></PermissionPage>} />
+          <Route path="ai-lab" element={<AiLabPage />} />
           <Route path="allocations" element={<PermissionPage path="/allocations" title="Allocations"><OptimizationPage /></PermissionPage>} />
           <Route path="contracts" element={<PermissionPage path="/contracts" title="Contracts"><ContractsPage /></PermissionPage>} />
           <Route path="contracts/:contractId" element={<PermissionPage path="/contracts" title="Contracts"><ContractsPage /></PermissionPage>} />

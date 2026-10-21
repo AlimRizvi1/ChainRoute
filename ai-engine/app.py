@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from allocator import build_allocation_plan
 from models import OptimizationRunRecord, OptimizeRequest
 from run_log import get_run_record
+from demonstrations import DemonstrationRequest, run_demonstration
 
 app = FastAPI(title="ChainRoute AI/ML Allocation Engine", version="1.0.0")
 logger = logging.getLogger(__name__)
@@ -75,3 +76,8 @@ def get_optimization_run(run_id: str) -> OptimizationRunRecord | JSONResponse:
 @app.post("/v1/optimize")
 def optimize(request: OptimizeRequest) -> dict:
     return build_allocation_plan(request)
+
+
+@app.post("/v1/demonstrations")
+def demonstrate(request: DemonstrationRequest) -> dict:
+    return run_demonstration(request)

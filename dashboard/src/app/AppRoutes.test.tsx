@@ -19,6 +19,7 @@ beforeEach(() => {
     const url = String(input);
     const body = url.endsWith("/health")
       ? { status: "ok", dependencies: { aiEngine: "up", blockchain: "up", database: "up" } }
+      : url.includes("/orders") ? { items: [{ orderId: "ORD-visible", cargoType: "grain", quantityTonnes: 20, destination: "Port-A", priority: 1, deadline: "2026-11-10T10:00:00Z", status: "Pending", createdAt: "2026-10-21T10:00:00Z" }], total: 1, nextOffset: null }
       : url.includes("/contracts")
         ? { items: [{ contractId: "CR-2048", planId: "plan-1", state: "InTransit", shipperId: "s", carrierId: "c" }] }
         : { pendingOrders: 2, activeContracts: 1, deliveredContracts: 0, pendingPayments: 0, wagonUtilizationPercent: 50, allocationsToday: 1, utilizationTrend: [10, 20, 30, 40, 50, 60, 50] };
@@ -28,6 +29,13 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); sessionStorage.clear(); });
 
 describe("dashboard route access", () => {
+  it("opens Freight orders as its own register instead of redirecting to Allocations", async () => {
+    writeSession({ token: "shipper-token", expiresAt: Date.now() + 60_000, user: { id: "shipper-1", username: "demo.shipper", role: "Shipper" } });
+    renderRoutes("/orders");
+    expect(await screen.findByRole("heading", { name: "Order register" })).toBeInTheDocument();
+    expect(await screen.findByText("ORD-visible")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "CP-SAT & ML lab" })).toBeInTheDocument();
+  });
   it("redirects a logged-out user to the login screen", () => {
     renderRoutes("/contracts");
     expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();

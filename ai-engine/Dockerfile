@@ -18,6 +18,7 @@ COPY ai-engine/search_agent.py .
 COPY ai-engine/synthetic_data.py .
 COPY ai-engine/train_prediction_model.py .
 COPY ai-engine/demonstrate_ml.py .
+COPY ai-engine/demonstrations.py .
 COPY ai-engine/demo ./demo
 
 EXPOSE 8000

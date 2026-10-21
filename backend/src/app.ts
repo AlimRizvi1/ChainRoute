@@ -9,6 +9,7 @@ import { registerDashboardRoutes } from "./dashboard/routes.js";
 import { registerContractRoutes } from "./contracts/routes.js";
 import { registerContractPush } from "./contracts/push.js";
 import { startContractSync } from "./contracts/sync.js";
+import { registerAiDemonstrations } from "./ai/routes.js";
 
 type DependencyState = "up" | "down";
 type HealthResponse = {
@@ -86,6 +87,7 @@ export async function createPlatformApp(options: PlatformAppOptions) {
     options.optimizationTimeoutMs ?? 60_000,
   );
   await registerDashboardRoutes(app, database);
+  registerAiDemonstrations(app, aiEngineUrl);
   const contractPush = registerContractPush(app, database);
   await registerContractRoutes(app, database, chainRpcUrl, contractPath);
   startContractSync(app, database, chainRpcUrl, contractPath, contractPush);
