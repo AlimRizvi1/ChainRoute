@@ -145,6 +145,15 @@ contract ChainRouteSettlement {
         Terms calldata terms
     ) external returns (uint256 contractId, bytes32 agreementHash) {
         if (msg.sender != operator) revert NotAuthorized();
+        return _createAgreement(planId, shipper, carrier, terms);
+    }
+
+    function _createAgreement(
+        string calldata planId,
+        address shipper,
+        address carrier,
+        Terms calldata terms
+    ) internal returns (uint256 contractId, bytes32 agreementHash) {
         _validateTerms(planId, shipper, carrier, terms);
 
         contractId = nextContractId++;

@@ -3,7 +3,7 @@ import { AiLabPage } from "./AiLabPage";
 import { BlockchainPage } from "./BlockchainPage";
 import { AuditPage, SavedPlansPage } from "./RecordsPages";
 import { AdminResourcesPage } from "./AdminResourcesPage";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { lazy, Suspense, useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate } from "react-router";
 import { API_MODE } from "../api/client";
 import { ApiError } from "../api/errors";
@@ -27,6 +27,8 @@ const DEMO_USERS = [
   { username: "demo.auditor", role: "Auditor" },
 ] as const;
 
+const WalletPage = lazy(() => import("./WalletPage").then(module => ({ default: module.WalletPage })));
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -40,6 +42,7 @@ export function AppRoutes() {
           <Route path="orders" element={<PermissionPage path="/orders" title="Freight orders"><OrdersPage /></PermissionPage>} />
           <Route path="ai-lab" element={<AiLabPage />} />
           <Route path="blockchain" element={<BlockchainPage />} />
+          <Route path="wallet" element={<Suspense fallback={<LoadingState label="Loading wallet workspace…" />}><WalletPage /></Suspense>} />
           <Route path="plans" element={<PermissionPage path="/plans" title="Saved plans"><SavedPlansPage /></PermissionPage>} />
           <Route path="admin/resources" element={<PermissionPage path="/admin/resources" title="Yard resources"><AdminResourcesPage /></PermissionPage>} />
           <Route path="allocations" element={<PermissionPage path="/allocations" title="Allocations"><OptimizationPage /></PermissionPage>} />

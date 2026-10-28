@@ -62,6 +62,7 @@ export const NAVIGATION: readonly NavigationItem[] = [
   { label: "CP-SAT & ML lab", href: "/ai-lab" },
   { label: "Contracts", href: "/contracts", permission: "contracts.read" },
   { label: "Blockchain", href: "/blockchain" },
+  { label: "Wallet & freight", href: "/wallet" },
   { label: "Audit trail", href: "/audit", permission: "audit.read" },
   { label: "Administration", href: "/admin", permission: "admin.users" },
   { label: "Yard resources", href: "/admin/resources", permission: "admin.wagons" },

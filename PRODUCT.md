@@ -22,11 +22,14 @@ The platform brings an explainable freight allocation service and a blockchain s
 
 Users work through a browser and interact with the platform's TypeScript API, the Track 1 allocation service, PostgreSQL, and the local Track 2 development chain. The main workflow is order submission, optimization, plan review and acceptance, contract booking, shipment updates, delivery confirmation, dispute resolution when needed, payment release, and closure. Local Compose services and demo users support evaluation and development.
 
+The Wallet & freight workspace adds a separate Sepolia DApp flow: verified MetaMask ownership, administrator wallet deployment, wallet-signed freight and lifecycle actions, atomic ERC-721 CRFR receipt minting, and explorer-linked transaction records. Deployment requires the wallet owner's signature and is not claimed complete until confirmed on the public testnet. Only gas is charged; INR freight settlement remains accounting. The local demo ledger remains separate.
+
 ## Capabilities and Constraints
 
 - The product has Shipper, Carrier, Administrator, and Auditor roles. The server enforces authorization; the interface mirrors those permissions and hides unavailable actions.
 - Freight and settlement values are integer INR paise. The browser displays values returned by the API and does not calculate settlement amounts.
 - Contract reads can continue from the PostgreSQL cache during chain outages. State-changing chain calls are queued and retried; the chain remains authoritative.
+- The local backend-signed workflow can queue writes. MetaMask DApp transactions require explicit wallet approval; receipt recovery may retry verification but never silently signs or resends a user transaction. DApp records are keyed by network and contract deployment.
 - The frontend must support a one-setting switch between sample/mock data and the real backend.
 - Demo and fixture data are synthetic. The interface must label sample data and must not imply real customers, live commercial traffic, or real-money payment.
 - The authenticated API uses short-lived bearer tokens and does not currently provide refresh tokens. The dashboard will use a session-scoped token and return users to login when the token expires.

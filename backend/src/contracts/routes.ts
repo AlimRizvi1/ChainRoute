@@ -259,6 +259,8 @@ async function acceptPlan(request: FastifyRequest<{ Params: { planId: string }; 
     : await db.query("SELECT plan_payload, created_by, scenario_group_id FROM allocation_plans WHERE plan_id = $1 AND created_by = $2", [request.params.planId, actor.userId]);
   const planRow = planResult.rows[0];
   if (!planRow) return apiError(reply, 404, "NOT_FOUND", "Plan was not found.");
+  const walletFreight = await db.query("SELECT 1 FROM wallet_freights WHERE scenario_group_id=$1 AND state <> 'Failed' LIMIT 1", [planRow.scenario_group_id]);
+  if (walletFreight.rowCount) return apiError(reply, 409, "WALLET_FREIGHT_EXISTS", "This scenario has a wallet freight. Continue in Wallet & freight to avoid a duplicate local agreement.");
   let opened: Awaited<ReturnType<typeof openSettlement>> | undefined;
   try {
     const plan = planRow.plan_payload as { assignments?: Array<{ orderId: string; wagonIds?: string[] }> };

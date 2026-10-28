@@ -11,7 +11,14 @@ subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD).setAction(async ({ solcVersion }, 
 });
 
 module.exports = {
-  solidity: "0.8.28",
+  solidity: {
+    compilers: [{ version: "0.8.28" }],
+    overrides: {
+      "contracts/ChainRouteFreightDApp.sol": {
+        version: "0.8.28", settings: { optimizer: { enabled: true, runs: 200 } },
+      },
+    },
+  },
   networks: {
     local: {
       url: process.env.CHAIN_RPC_URL || "http://127.0.0.1:8545",

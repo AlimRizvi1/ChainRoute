@@ -1,0 +1,15 @@
+{
+  "contractName": "ChainRouteSettlement",
+  "chainId": 31337,
+  "compilerVersion": "0.8.28+commit.7893614a.Emscripten.clang",
+  "normalizedRuntimeHash": "0x2c0f6ef7eecb9027de1d27de0e0d847167b4ca9bb1826184271f9bd158d3ceef",
+  "immutableReferences": {
+    "209": [
+      { "length": 32, "start": 4054 },
+      { "length": 32, "start": 4104 },
+      { "length": 32, "start": 6209 },
+      { "length": 32, "start": 9435 },
+      { "length": 32, "start": 9927 }
+    ]
+  }
+}

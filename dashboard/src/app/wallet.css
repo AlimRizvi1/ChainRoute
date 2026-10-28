@@ -1,0 +1,47 @@
+.wallet-page { min-width: 0; color: #18261f; }
+.wallet-heading { display: flex; justify-content: space-between; align-items: end; gap: 2rem; flex-wrap: wrap; margin-bottom: 2rem; }
+.wallet-heading h1 { font-family: "Bowlby One SC", sans-serif; font-size: 2.5rem; margin: 0; }
+.wallet-page h2 { font-size: 1.4rem; margin: 0 0 1rem; }
+.wallet-page h3 { font-size: 1.1rem; margin: 0; }
+.wallet-page p { max-width: 72ch; line-height: 1.6; }
+.wallet-page code, .wallet-page dd { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.wallet-page a { color: #18261f; text-underline-offset: .2em; }
+.wallet-page a:hover { color: #813323; }
+.wallet-page button { cursor: pointer; transition: background-color 180ms ease-out, color 180ms ease-out; }
+.wallet-page button:disabled { opacity: .6; cursor: not-allowed; }
+.wallet-page :focus-visible { outline: 3px solid #995c00; outline-offset: 4px; }
+.wallet-message { padding: 1rem 1.2rem; background: #f8f6ef; border: 1px solid #a5aa9b; overflow-wrap: anywhere; }
+.wallet-message.is-error { background: #f6e5dd; color: #7a2f20; border-color: #b44b38; }
+.wallet-connection { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; padding: 1.5rem; background: #18261f; color: #f8f6ef; }
+.wallet-connection p { font-size: .9rem; margin: .5rem 0; }
+.wallet-network { color: #e2cf9b; }
+.wallet-flow { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); list-style-position: inside; padding: 0; margin: 0; background: #d29a28; }
+.wallet-flow li { padding: 1rem; border-inline-end: 1px solid #9a701f; font-size: .85rem; font-weight: 700; }
+.wallet-cost-note { margin: 1.2rem 0 2.5rem; font-size: .9rem; }
+.wallet-deployment, .wallet-initiation, .wallet-pending { border-top: 1px solid #a5aa9b; padding: 1.7rem 0; }
+.wallet-deployment > a, .wallet-deployment > button { margin-inline-end: 1.5rem; }
+.wallet-pending { background: #f8f6ef; padding: 1.5rem; margin-bottom: 1rem; }
+.wallet-pending button { display: block; margin-top: 1rem; }
+.wallet-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1.2rem; max-width: 850px; margin: 1.5rem 0; }
+.wallet-page label { display: grid; gap: .5rem; font-weight: 700; font-size: .85rem; }
+.wallet-page label small, .wallet-receipt dd small { display: block; font-weight: 400; line-height: 1.5; }
+.wallet-wide { grid-column: 1 / -1; }
+.wallet-page input, .wallet-page select { width: 100%; min-width: 0; padding: .8rem; font: inherit; background: #f8f6ef; color: #18261f; border: 1px solid #899181; border-radius: 4px; box-sizing: border-box; caret-color: #813323; }
+.wallet-page input::placeholder { color: #5a6558; }
+.wallet-fine-print { font-size: .8rem; }
+.wallet-ledger { margin-top: 2rem; }
+.wallet-ledger-heading, .wallet-receipt header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.wallet-receipt { border-top: 2px solid #18261f; padding: 1.5rem 0; margin-top: 1.5rem; }
+.wallet-state { background: #18261f; color: #f8f6ef; padding: .4rem .7rem; font-size: .8rem; }
+.wallet-state.is-failed { background: #813323; }
+.wallet-receipt dl { margin: 1rem 0; }
+.wallet-receipt dl > div { display: grid; grid-template-columns: 180px minmax(0,1fr); gap: 1rem; border-bottom: 1px solid #b9b9aa; padding: .7rem 0; font-size: .85rem; }
+.wallet-receipt dt { font-weight: 700; }
+.wallet-receipt dd { margin: 0; }
+.wallet-receipt-actions, .wallet-contract-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-top: 1rem; }
+.wallet-contract-actions form { display: flex; align-items: end; flex-wrap: wrap; gap: .8rem; }
+.wallet-receipt-actions button, .wallet-contract-actions button, .wallet-ledger-heading button, .wallet-text-button { background: transparent; border: 1px solid #6e7969; padding: .7rem 1rem; color: #18261f; font: inherit; font-size: .85rem; }
+.wallet-page button:hover:enabled { background: #d29a28; color: #18261f; }
+.wallet-explorer { display: inline-block; font-size: .85rem; }
+@media (max-width: 640px) { .wallet-heading h1 { font-size: 1.9rem; } .wallet-flow { grid-template-columns: 1fr 1fr; } .wallet-fields { grid-template-columns: 1fr; } .wallet-receipt dl > div { grid-template-columns: 1fr; gap: .35rem; } .wallet-connection { padding: 1.1rem; } }
+@media (prefers-reduced-motion: reduce) { .wallet-page button { transition: none; } }

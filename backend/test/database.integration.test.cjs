@@ -40,6 +40,7 @@ test(
       "005_saved_what_if_scenarios.sql",
       "006_account_registration.sql",
       "007_replay_event_history_hashes.sql",
+      "008_wallet_dapp.sql",
     ]);
     assert.deepEqual(await runMigrations(pool), []);
 

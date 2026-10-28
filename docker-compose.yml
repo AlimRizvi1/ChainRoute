@@ -116,6 +116,9 @@ services:
       CHAIN_OPERATOR_PRIVATE_KEY: "${CHAIN_OPERATOR_PRIVATE_KEY:-}"
       CHAIN_SHIPPER_PRIVATE_KEY: "${CHAIN_SHIPPER_PRIVATE_KEY:-}"
       CHAIN_CARRIER_PRIVATE_KEY: "${CHAIN_CARRIER_PRIVATE_KEY:-}"
+      DAPP_CHAIN_ID: "${DAPP_CHAIN_ID:-11155111}"
+      DAPP_RPC_URL: "${DAPP_RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}"
+      DAPP_ORIGIN: "${DAPP_ORIGIN:-http://localhost:5173}"
       DATABASE_URL: "postgresql://${POSTGRES_USER:-chainroute}:${POSTGRES_PASSWORD:-chainroute-local}@database:5432/${POSTGRES_DB:-chainroute}"
       MASTER_DATA_SEED_PATH: /samples/plentiful-dataset.json
       CONTRACT_FILE: /shared/contract.json

@@ -12,6 +12,7 @@ import { startContractSync } from "./contracts/sync.js";
 import { registerAiDemonstrations } from "./ai/routes.js";
 import { registerPlatformRoutes } from "./platform/routes.js";
 import { registerBlockchainExplorer } from "./platform/blockchain.js";
+import { registerDappRoutes } from "./dapp/routes.js";
 
 type DependencyState = "up" | "down";
 type HealthResponse = {
@@ -92,6 +93,7 @@ export async function createPlatformApp(options: PlatformAppOptions) {
   registerAiDemonstrations(app, aiEngineUrl);
   registerPlatformRoutes(app, database, chainRpcUrl);
   registerBlockchainExplorer(app, chainRpcUrl, contractPath);
+  registerDappRoutes(app, database);
   const contractPush = registerContractPush(app, database);
   await registerContractRoutes(app, database, chainRpcUrl, contractPath);
   startContractSync(app, database, chainRpcUrl, contractPath, contractPush);
