@@ -1,8 +1,6 @@
 const assert = require("node:assert/strict");
 
-async function expectCustomError(action, errorName) {
-  await assert.rejects(action, (error) => error.message.includes(errorName));
-}
+const { settledContract, expectCustomError } = require("./settled-contract");
 
 function getEvents(contract, receipt) {
   return receipt.logs
@@ -40,8 +38,9 @@ describe("ChainRouteSettlement Phase 12", function () {
       termsHash: ethers.keccak256(ethers.toUtf8Bytes("phase 12 terms")),
       ...termOverrides,
     };
-    const contract = await ethers.deployContract("ChainRouteSettlement");
+    let contract = await ethers.deployContract("ChainRouteSettlement");
     await contract.waitForDeployment();
+    contract = settledContract(contract);
     const creation = await contract.createAgreement(
       "plan-phase-12",
       shipper.address,

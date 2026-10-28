@@ -57,6 +57,12 @@ class OptimizeRequest(StrictModel):
     wagons: list[Wagon]
     routes: list[Route]
     weights: Weights
+    planningStart: datetime | None = None
+
+    @field_validator("planningStart", mode="before")
+    @classmethod
+    def parse_planning_start(cls, value: object) -> datetime | None:
+        return None if value is None else Order.parse_utc_deadline(value)
     timeBudgetSeconds: Annotated[
         float | None, Field(ge=0.05, le=10, allow_inf_nan=False)
     ] = None

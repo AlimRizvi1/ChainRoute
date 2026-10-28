@@ -1,0 +1,62 @@
+.blockchain-page { min-width: 0; }
+.genesis-origin { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; padding: 1.25rem 0; border-bottom: 1px solid #b9b9aa; }
+.genesis-origin > button { display: flex; align-items: center; gap: 1rem; background: none; border: 0; padding: 0; color: #18261f; text-align: left; cursor: pointer; }
+.genesis-number { display: grid; place-items: center; width: 58px; height: 64px; background: #18261f; color: #f0ca77; font: 2.3rem "Bowlby One SC", sans-serif; }
+.genesis-origin strong { font-size: 1.1rem; display: block; }
+.genesis-origin button span span, .genesis-origin > div > span { display: block; font-size: .76rem; margin-top: .35rem; }
+.genesis-origin > div { margin-left: auto; }
+.genesis-origin time { display: block; font-size: .82rem; margin-top: .4rem; font-variant-numeric: tabular-nums; }
+.genesis-origin > code { font-size: .7rem; }
+.block-time-zone { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; font-size: .78rem; }
+.block-time-zone select { padding: .55rem; color: #18261f; border: 1px solid #8a8c7d; background: #f8f6ef; }
+.chain-clock-note { font-size: .81rem; line-height: 1.65; max-width: 78ch; margin: 0 0 1.2rem; }
+.chain-block.is-genesis .block-face { background: #f0dfad; border-color: #d29a28; }
+.chain-block.is-genesis .block-seal { background: #18261f; color: #f8f6ef; }
+.blockchain-heading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin: .75rem 0 2rem; }
+.blockchain-heading h1 { font-family: "Bowlby One SC", sans-serif; font-size: clamp(2rem, 4.5vw, 4.2rem); line-height: 1.06; letter-spacing: -.025em; max-width: 15ch; margin: 0 0 1rem; text-wrap: balance; }
+.blockchain-heading p { max-width: 62ch; margin: 0; line-height: 1.7; }
+.blockchain-heading > a { flex-shrink: 0; }
+.ledger-status { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; padding: 1rem 0; border-block: 1px solid #b9b9aa; font-size: .85rem; }
+.ledger-status > span:last-child { margin-left: auto; font-variant-numeric: tabular-nums; }
+.ledger-indicator { width: 9px; height: 9px; background: #245d3d; border-radius: 50%; flex-shrink: 0; }
+.ledger-indicator.is-paused { background: #b44b38; }
+.ledger-controls { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; padding: 1.25rem 0; }
+.motion-toggle { display: flex; align-items: center; gap: .5rem; font-size: .85rem; margin-inline: .4rem; }
+.motion-toggle input { accent-color: #b44b38; width: 18px; height: 18px; }
+.chain-stage { background: #18261f; color: #f8f6ef; padding: 1.4rem 0 1rem; overflow: hidden; }
+.chain-caption { display: flex; justify-content: space-between; gap: 1rem; padding: 0 1.5rem; font-size: .85rem; }
+.chain-viewport { overflow-x: auto; scrollbar-color: #d29a28 #26392f; padding: 2rem 1.5rem 1.5rem; }
+.chain-rail { display: flex; align-items: center; list-style: none; margin: 0; padding: 0; width: max-content; gap: 52px; }
+.chain-block { width: 236px; position: relative; }
+.chain-link { position: absolute; width: 52px; height: 24px; top: 46%; left: -52px; }
+.chain-link svg { stroke: #d29a28; stroke-width: 2; fill: none; width: 100%; }
+.block-face { display: flex; flex-direction: column; text-align: left; width: 100%; border: 2px solid #a6b0a5; background: #e7e2d6; color: #18261f; padding: 1.1rem; cursor: pointer; min-height: 235px; transition: border-color .2s, background-color .2s; }
+.block-face:hover { background: #fffdf5; border-color: #d29a28; }
+.block-face.is-selected { border-color: #d29a28; background: #f8f6ef; outline: 2px solid #d29a28; outline-offset: 4px; }
+.block-number { font-size: .7rem; display: flex; align-items: baseline; justify-content: space-between; letter-spacing: .06em; }
+.block-number strong { font-size: 2rem; font-family: "Bowlby One SC", sans-serif; letter-spacing: -.02em; }
+.block-face time { font-size: .73rem; border-bottom: 1px solid #b9b9aa; padding-bottom: .8rem; margin: .4rem 0 .8rem; font-variant-numeric: tabular-nums; }
+.block-hash { display: flex; justify-content: space-between; gap: .4rem; margin: .28rem 0; font-size: .7rem; }
+.block-hash small { font-size: .61rem; font-weight: 800; }
+.block-seal { background: #d29a28; margin: 1rem -1.1rem -1.1rem; padding: .65rem 1.1rem; font-size: .72rem; font-weight: 800; }
+.chain-hint { margin: .8rem 1.5rem 0; font-size: .79rem; color: #d6dcce; }
+.ledger-detail-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(270px, 1fr); gap: 2.5rem; margin-top: 2.5rem; }
+.block-inspector header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.block-inspector h2, .ledger-explanation h2 { font-size: 1.55rem; margin: 0 0 1rem; }
+.block-inspector header span { font-size: .8rem; }
+.block-fields { margin: 0; }
+.block-fields > div { padding: .9rem 0; border-bottom: 1px solid #c7c7b9; display: grid; grid-template-columns: 125px minmax(0,1fr); gap: 1rem; }
+.block-fields dt { font-size: .78rem; font-weight: 700; }
+.block-fields dd, .ledger-network dd { margin: 0; overflow-wrap: anywhere; font-size: .76rem; line-height: 1.6; }
+.transaction-hashes { padding-left: 1.4rem; font-size: .76rem; line-height: 1.8; overflow-wrap: anywhere; }
+.ledger-explanation { border-left: 1px solid #b9b9aa; padding-left: 2rem; }
+.ledger-explanation > ol { padding-left: 1.25rem; }
+.ledger-explanation li { padding-left: .5rem; margin-bottom: 1.5rem; }
+.ledger-explanation p, .block-inspector > p { font-size: .87rem; line-height: 1.75; max-width: 70ch; }
+.ledger-explanation li p { margin-top: .5rem; }
+.ledger-network { border-top: 2px solid #18261f; padding-top: 1rem; margin: 2rem 0; }
+.ledger-network dt { font-weight: 800; margin-top: .8rem; font-size: .75rem; }
+@media (max-width: 1050px) { .blockchain-heading { align-items: start; flex-direction: column; } .ledger-detail-grid { grid-template-columns: 1fr; } .ledger-explanation { border-left: 0; border-top: 1px solid #b9b9aa; padding: 2rem 0 0; } }
+@media (max-width: 600px) { .chain-block { width: 220px; } .chain-caption { flex-direction: column; gap: .4rem; } .block-fields > div { grid-template-columns: 1fr; gap: .4rem; } .ledger-status > span:last-child { margin-left: 0; } .ledger-controls .primary-button { width: 100%; } }
+@media (max-width: 600px) { .genesis-origin { gap: 1rem; } .genesis-origin > div { margin-left: 0; width: 100%; } .block-face time { line-height: 1.6; } }
+@media (prefers-reduced-motion: reduce) { .blockchain-page * { transition: none !important; animation: none !important; } }

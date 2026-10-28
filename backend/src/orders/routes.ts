@@ -16,6 +16,7 @@ type OptimizationInput = {
   sourcePlanId?: string;
 };
 type OptimizationSnapshot = {
+  planningStart?: string;
   orders: Array<Record<string, unknown>>;
   wagons: Array<Record<string, unknown>>;
   routes: Array<Record<string, unknown>>;
@@ -224,6 +225,7 @@ export async function registerOrderRoutes(
           routes: routesResult.rows.map((route) => ({ ...route, distanceKm: Number(route.distanceKm) })),
           weights: request.body.weights,
           timeBudgetSeconds: request.body.timeBudgetSeconds ?? 1,
+          planningStart: new Date().toISOString(),
         };
       }
 

@@ -12,6 +12,11 @@ Open <http://localhost:5173/login> and sign in as **demo.shipper** using the exi
 | Settlement · Administrator | Sign in as **demo.administrator**. The payment-ready agreement can be released and closed; private financial details are shown to its parties |
 | Audit view · Auditor | Sign in as **demo.auditor**. Open a contract to read its immutable state history; commercial fields stay private |
 | CP-SAT & ML lab · All four roles | <http://localhost:5173/ai-lab> runs the live greedy/CP-SAT comparison and ML prediction controls, and displays synthetic holdout accuracy, baseline and confusion matrix. The standalone ML view remains at <http://localhost:8000/demo/> |
+| Blockchain · All four roles | <http://localhost:5173/blockchain> shows real blocks, timestamps, parent links, header roots and transaction hashes. Replay recorded blocks, pause motion or inspect older windows. An Administrator can add an empty local demonstration block and watch it join the chain |
+| Saved plans · Shipper / Administrator | <http://localhost:5173/plans> reopens persistent allocation runs for review, what-if comparison, acceptance and CSV export |
+| Yard resources · Administrator | <http://localhost:5173/admin/resources> adds/edits wagons and routes, toggles availability and retires resources from future runs |
+| People & access · Administrator | Invite role-specific accounts, enable/disable accounts, and assign unused local development signing wallets to Shippers and Carriers. Registered carriers can then be selected directly in the agreement form |
+| Audit trail · Administrator / Auditor | <http://localhost:5173/audit> filters accepted/rejected actions by actor or action, with pagination and HTTP outcome codes |
 
 All four local role accounts use the root `.env` demo password. The default seed does not create real user orders or move bank money. Signup creates a separate Shipper account with its own data and chosen password.
 
@@ -24,10 +29,10 @@ For a teacher walkthrough, open **CP-SAT & ML lab** from the sidebar:
 
 Counts change when allocations run: zero Pending does not mean orders disappeared. Choose **All orders** or **Planned** to see saved orders. The order deadline field uses local time and sends UTC to the API.
 
-To start the current services without redeploying the blockchain:
+To start or rebuild the services and populate the demo:
 
 ```powershell
-docker compose start
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-demo.ps1
 ```
 
 To populate these demonstration records once the services are healthy:
@@ -38,4 +43,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/seed-frontend-demo.p
 
 The helper uses authenticated API calls and real AI allocation/contract operations. It creates a closed late settlement, a payment-ready on-time shipment, an in-transit shipment, a Created agreement ready for booking, and six pending orders. It preserves existing records, refuses production, and reuses previously created demo agreements. The seed report with exact IDs is in ignored `artifacts/demo/frontend-demo.json`; temporary login sessions stay in ignored `artifacts/demo/.sessions.json` and must not be shared.
 
-The late example advances the local Hardhat clock by about thirteen hours so delivery confirmation obeys the on-chain timestamp rules. Active-contract and pending-order deadlines are created afterwards. For manual delivery, choose a time between the previous milestone and current chain time. Plan departure/arrival estimates currently follow Track 1's fixed January 2026 synthetic clock. A container restart of the Hardhat process loses its in-memory ledger; use the running stack for this demonstration.
+The late example uses a feasible 60-hour planning horizon, then advances the local chain clock by another thirteen hours to produce the reference deductions. Active-contract and pending-order deadlines are created afterwards. The shipment/delivery forms expose an **Event time** field, initialized consistently with the latest recorded event; use the observed milestone time, at or after the previous record and no later than the current chain timestamp for delivery. The blockchain inspector shows that timestamp. Ordinary operational plans use a saved current planning start; the teaching examples retain their fixed synthetic clock.
+
+The local EVM now uses pinned Anvil with persistent block/state storage; Hardhat still compiles and tests the settlement contract. Normal Compose stop/start preserves the ledger and deployment. `docker compose down -v` explicitly removes volumes, so use the separate validation reset command when you want a disposable clean demo.
+
+On the current workstation, Docker PostgreSQL is published at **localhost:55432**, database **chainroute_live**, using the existing PostgreSQL credentials in `.env`. The former `chainroute` database remains intact in the same PostgreSQL volume as an archive of the earlier volatile-chain demonstration. Accounts and yard master data were copied into `chainroute_live`; its operational demo records were created afresh through the real API. The pre-change SQL backup and former demo report are kept under ignored `artifacts/`. Never publish those files or the local session/credential files.

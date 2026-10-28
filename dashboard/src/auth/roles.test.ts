@@ -4,16 +4,16 @@ import { canVisit, hasPermission, navigationForRole, ROLES } from "./roles";
 describe("role-aware navigation", () => {
   it("shows each user only the routes allowed by the backend permission matrix", () => {
     expect(navigationForRole("Shipper").map((item) => item.href)).toEqual([
-      "/overview", "/orders", "/allocations", "/ai-lab", "/contracts",
+      "/overview", "/orders", "/allocations", "/plans", "/ai-lab", "/contracts", "/blockchain",
     ]);
     expect(navigationForRole("Carrier").map((item) => item.href)).toEqual([
-      "/overview", "/ai-lab", "/contracts",
+      "/overview", "/ai-lab", "/contracts", "/blockchain",
     ]);
     expect(navigationForRole("Administrator").map((item) => item.href)).toEqual([
-      "/overview", "/orders", "/allocations", "/ai-lab", "/contracts", "/audit", "/admin",
+      "/overview", "/orders", "/allocations", "/plans", "/ai-lab", "/contracts", "/blockchain", "/audit", "/admin", "/admin/resources",
     ]);
     expect(navigationForRole("Auditor").map((item) => item.href)).toEqual([
-      "/overview", "/ai-lab", "/contracts", "/audit",
+      "/overview", "/ai-lab", "/contracts", "/blockchain", "/audit",
     ]);
   });
 

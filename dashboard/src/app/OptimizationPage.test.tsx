@@ -8,6 +8,7 @@ import { createOrder, runOptimization, acceptPlan } from "../api/optimization";
 import { OptimizationPage } from "./OptimizationPage";
 
 vi.mock("../api/optimization", () => ({ createOrder: vi.fn(), runOptimization: vi.fn(), acceptPlan: vi.fn() }));
+vi.mock("../api/platform", () => ({ planningResources: vi.fn().mockResolvedValue({ walletMapped: true, carriers: [], yards: [], routes: [] }), loadPlan: vi.fn() }));
 
 const plan = (id: string, onTime: number, cost: string): AllocationPlan => ({
   planId: id, runId: `run-${id}`, score: 0.8, assignments: [{

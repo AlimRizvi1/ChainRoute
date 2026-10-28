@@ -1539,7 +1539,7 @@ Until Track 1 and Track 2 are ready, build against the **Phase 2 stubs**; swap t
 
 **Acceptance Criteria**
 - [ ] A person who has not seen the application before can complete an order-to-plan flow after only a short walkthrough, satisfying the SRS Usability NFR.
-- [ ] Track 3 is considered feature-complete across both the backend API and the dashboard.
+- [x] Track 3 software is feature-complete across the backend and dashboard; see the 26 October TDP audit and README. External-person acceptance remains below.
 - [x] Authenticated dashboard clients receive party-only live contract events, recover from a dropped connection, and refresh the affected view; alerts name disputes, late settlement, and shipment risk in text.
 - [x] Plan and settlement CSV actions export only loaded data; automated tests cover CSV encoding, formula safety, exact paise values, and event classification.
 - [ ] Visually verify the overview, allocations, contracts, and tracking screens at 375px, 768px, and 1280px, including keyboard and accessibility review.
@@ -1598,9 +1598,9 @@ Repeat the same sequence with an **on-time** delivery: penalty 0, demurrage 0, n
 - A step that times out due to an unusually slow machine — the script's own timeouts must be generous enough not to produce false failures, while still catching a genuinely broken step.
 
 **Acceptance Criteria**
-- [ ] The script passes from a completely clean `docker compose down -v && up --build`.
-- [ ] All four failure drills pass.
-- [ ] Both the late and the on-time scenarios produce the exact figures stated above.
+- [x] The script passes from a completely clean reset/build of the isolated validation Compose project (26 October); main project volumes are preserved.
+- [x] All four failure drills pass, including actual persistent-node process stop/restart (26 October).
+- [x] Both the late and on-time scenarios produce the exact figures stated above (26 October).
 
 ---
 

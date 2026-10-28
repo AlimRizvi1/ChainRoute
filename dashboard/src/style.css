@@ -16,7 +16,7 @@
   --paper: #e7e2d6;
   --surface: #f8f6ef;
   --rule: #d5cdbb;
-  --muted: #66716a;
+  --muted: #4d594e;
   --good: #357154;
   --warn: #7b5912;
   --danger: #8f3e2e;
@@ -271,7 +271,7 @@ a { color: inherit; text-underline-offset: 3px; }
 
 @keyframes turn { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0ms !important; transition-duration: .01ms !important; }
 }
 @media (max-width: 920px) {
   .workspace-shell { grid-template-columns: 208px minmax(0, 1fr); }
@@ -438,7 +438,7 @@ a { color: inherit; text-underline-offset: 3px; }
 .contracts-page, .contract-detail-page { display: grid; gap: 15px; max-width: 1420px; margin: 0 auto; animation: rise-in .4s both; }
 .contracts-heading h1 { max-width: 14ch; }
 .contracts-count { display: grid; justify-items: end; gap: 2px; padding: 9px 13px; border-left: 2px solid var(--tomato); }
-.contracts-count strong { color: var(--ink); font-family: Impact, "Arial Narrow", sans-serif; font-size: 28px; font-weight: 500; line-height: 1; }
+.contracts-count strong { color: var(--ink); font-family: "Bowlby One SC", sans-serif; font-size: 28px; font-weight: 400; line-height: 1; }
 .contracts-count small { color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .contract-filters { display: grid; grid-template-columns: minmax(210px, 1fr) minmax(180px, .45fr) auto; align-items: end; gap: 10px; padding: 14px; border: 1px solid #d3cabb; background: #f0ece2; }
 .contract-filters label { display: grid; gap: 5px; color: var(--ink-soft); font-size: 9px; font-weight: 850; }
@@ -564,7 +564,7 @@ a { color: inherit; text-underline-offset: 3px; }
 .settlement-pending { margin: 0 0 12px; padding: 10px 12px; border: 1px dashed #c6b79e; background: #f5f1e8; color: var(--ink-soft); font-size: 10px; line-height: 1.5; }
 .settlement-values { display: grid; gap: 0; }
 .settlement-line { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-top: 1px solid #e1d9cc; }
-.settlement-line > div { display: grid; gap: 4px; min-width: 0; }
+.settlement-line > dt { display: grid; gap: 4px; min-width: 0; }
 .settlement-line dt, .settlement-net dt { color: var(--ink-soft); font-size: 10px; font-weight: 800; }
 .settlement-line small { color: var(--muted); font-size: 8px; line-height: 1.45; }
 .settlement-line dd, .settlement-net dd { flex: 0 0 auto; margin: 0; color: var(--ink); font-family: "Manrope Variable", sans-serif; font-size: 11px; font-weight: 900; font-variant-numeric: tabular-nums; }
@@ -576,11 +576,11 @@ a { color: inherit; text-underline-offset: 3px; }
 .contract-history { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
 .contract-history li { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; min-height: 66px; animation: rise-in .3s both; animation-delay: calc(var(--item-index) * 35ms); }
 .contract-history li:not(:last-child)::after { position: absolute; top: 25px; bottom: -1px; left: 12px; width: 1px; background: #d8cebd; content: ""; }
-.history-node { z-index: 1; display: grid; width: 25px; height: 25px; place-items: center; border: 1px solid #cdbb94; border-radius: 50%; background: #f6f0df; color: var(--tomato); font-size: 8px; font-weight: 900; }
+.history-node { z-index: 1; display: grid; width: 25px; height: 25px; place-items: center; border: 1px solid #cdbb94; border-radius: 50%; background: #f6f0df; color: #8f3e2e; font-size: 8px; font-weight: 900; }
 .history-event { display: grid; align-content: start; gap: 4px; min-width: 0; padding: 2px 0 15px; }
 .history-event strong { color: var(--ink); font-size: 10px; }
 .history-event small { color: var(--muted); font-size: 8px; overflow-wrap: anywhere; }
-.history-event code { overflow: hidden; color: #77766d; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.history-event code { color: #4d594e; font-size: 10px; overflow-wrap: anywhere; white-space: normal; }
 .redacted-inline { margin: 0; color: var(--muted); font-size: 9px; }
 .contract-error-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .contract-error-actions .text-link { min-height: 40px; padding: 0 12px; border: 1px solid #a69a88; background: transparent; cursor: pointer; }

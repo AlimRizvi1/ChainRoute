@@ -1,3 +1,4 @@
+const { settledContract } = require("./settled-contract");
 const assert = require("node:assert/strict");
 const { ethers, artifacts } = require("hardhat");
 const fs = require("node:fs");
@@ -58,8 +59,15 @@ describe("ChainRouteSettlement", function () {
 
   async function beginTransit(contractId, arrivedAt) {
     await contract.connect(carrier).confirmBooking(contractId);
+    await ethers.provider.send("evm_setNextBlockTimestamp", [Number(arrivedAt - 1n)]);
     await contract.connect(carrier).updateShipmentStatus(contractId, 0, arrivedAt - 1n);
+    await ethers.provider.send("evm_setNextBlockTimestamp", [Number(arrivedAt)]);
     await contract.connect(carrier).updateShipmentStatus(contractId, 2, arrivedAt);
+  }
+
+  async function deliver(contractId, timestamp, proof) {
+    await ethers.provider.send("evm_setNextBlockTimestamp", [Number(timestamp)]);
+    return contract.connect(carrier).confirmDelivery(contractId, timestamp, proof);
   }
 
   beforeEach(async function () {
@@ -68,6 +76,7 @@ describe("ChainRouteSettlement", function () {
     deadline = BigInt(latest.timestamp + 1_000_000);
     contract = await ethers.deployContract("ChainRouteSettlement");
     await contract.waitForDeployment();
+    contract = settledContract(contract);
   });
 
   it("matches every function, event, and custom error in the frozen ABI", async function () {
@@ -80,6 +89,8 @@ describe("ChainRouteSettlement", function () {
       const actualEntries = actualInterface.fragments
         .filter((fragment) => fragment.type === type)
         .map((fragment) => fragment.format("sighash"))
+        // Solidity's public operator getter supplements the frozen business API.
+        .filter((signature) => !(type === "function" && signature === "operator()"))
         .sort();
       const frozenEntries = frozenInterface.fragments
         .filter((fragment) => fragment.type === type)
@@ -87,6 +98,7 @@ describe("ChainRouteSettlement", function () {
         .sort();
       assert.deepEqual(actualEntries, frozenEntries);
     }
+    assert.equal(await contract.operator(), operator.address);
   });
 
   it("creates isolated agreements with deterministic agreement hashes and append-only history", async function () {
@@ -152,7 +164,7 @@ describe("ChainRouteSettlement", function () {
     const arrival = deadline + 3n * 3600n;
     const delivery = deadline + 13n * 3600n;
     await beginTransit(contractId, arrival);
-    const receipt = await (await contract.connect(carrier).confirmDelivery(contractId, delivery, "pod-vector-f")).wait();
+    const receipt = await (await deliver(contractId, delivery, "pod-vector-f")).wait();
     const emitted = receipt.logs
       .map((log) => {
         try { return contract.interface.parseLog(log)?.name; } catch { return null; }
@@ -185,7 +197,7 @@ describe("ChainRouteSettlement", function () {
     const delivery = deadline - 3600n;
     const arrival = delivery - 4n * 3600n;
     await beginTransit(contractId, arrival);
-    await contract.connect(carrier).confirmDelivery(contractId, delivery, "pod-on-time");
+    await deliver(contractId, delivery, "pod-on-time");
 
     const [agreement] = await contract.getContractStatus(contractId);
     assert.equal(agreement.onTime, true);
@@ -201,7 +213,7 @@ describe("ChainRouteSettlement", function () {
     const arrival = deadline + 394n * 3600n;
     const delivery = deadline + 400n * 3600n;
     await beginTransit(contractId, arrival);
-    await contract.connect(carrier).confirmDelivery(contractId, delivery, "pod-capped");
+    await deliver(contractId, delivery, "pod-capped");
     const [agreement] = await contract.getContractStatus(contractId);
     assert.equal(agreement.penaltyPaise, freight);
     assert.equal(agreement.demurragePaise, 0n);
@@ -223,7 +235,7 @@ describe("ChainRouteSettlement", function () {
     const { contractId } = await create();
     const arrival = deadline + 3n * 3600n;
     await beginTransit(contractId, arrival);
-    await contract.connect(carrier).confirmDelivery(contractId, deadline + 13n * 3600n, "pod-dispute");
+    await deliver(contractId, deadline + 13n * 3600n, "pod-dispute");
 
     await expectCustomError(
       contract.connect(outsider).raiseDispute(contractId, "DELAY_CAUSE", outsider.address),
@@ -251,9 +263,10 @@ describe("ChainRouteSettlement", function () {
       [0n, 0n, 2_500_000n],
     ];
     for (let outcome = 0; outcome < expected.length; outcome += 1) {
+      deadline = BigInt((await ethers.provider.getBlock("latest")).timestamp + 1_000_000);
       const { contractId } = await create();
       await beginTransit(contractId, deadline + 3n * 3600n);
-      await contract.connect(carrier).confirmDelivery(contractId, deadline + 13n * 3600n, `pod-outcome-${outcome}`);
+      await deliver(contractId, deadline + 13n * 3600n, `pod-outcome-${outcome}`);
       await contract.connect(shipper).raiseDispute(contractId, "REVIEW", shipper.address);
       await contract.resolveDispute(contractId, outcome);
       await contract.releasePayment(contractId);

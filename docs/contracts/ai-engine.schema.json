@@ -65,6 +65,7 @@
         "wagons": { "type": "array", "items": { "$ref": "#/$defs/wagon" } },
         "routes": { "type": "array", "items": { "$ref": "#/$defs/route" } },
         "weights": { "$ref": "#/$defs/weights" },
+        "planningStart": { "type": ["string", "null"], "format": "date-time", "description": "Optional UTC operational planning origin. Omitted/null preserves the deterministic synthetic clock." },
         "timeBudgetSeconds": { "type": ["number", "null"], "minimum": 0.05, "maximum": 10 }
       }
     },

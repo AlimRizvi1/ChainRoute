@@ -1,8 +1,6 @@
 const assert = require("node:assert/strict");
 
-async function expectCustomError(action, errorName) {
-  await assert.rejects(action, (error) => error.message.includes(errorName));
-}
+const { settledContract, expectCustomError } = require("./settled-contract");
 
 function getEvents(contract, receipt) {
   return receipt.logs
@@ -40,8 +38,9 @@ describe("ChainRouteSettlement Phase 13", function () {
       termsHash: ethers.keccak256(ethers.toUtf8Bytes("phase 13 terms")),
       ...termOverrides,
     };
-    const contract = await ethers.deployContract("ChainRouteSettlement");
+    let contract = await ethers.deployContract("ChainRouteSettlement");
     await contract.waitForDeployment();
+    contract = settledContract(contract);
     const creationReceipt = await (
       await contract.createAgreement("plan-phase-13", shipper.address, carrier.address, terms)
     ).wait();
@@ -122,8 +121,9 @@ describe("ChainRouteSettlement Phase 13", function () {
   it("rejects release before PenaltyCalculated", async function () {
     [operator, shipper, carrier] = await ethers.getSigners();
     const latestBlock = await ethers.provider.getBlock("latest");
-    const contract = await ethers.deployContract("ChainRouteSettlement");
+    let contract = await ethers.deployContract("ChainRouteSettlement");
     await contract.waitForDeployment();
+    contract = settledContract(contract);
     await contract.createAgreement("plan-early-release", shipper.address, carrier.address, {
       freightValuePaise: 100n,
       slaDeadline: BigInt(latestBlock.timestamp + 86400),

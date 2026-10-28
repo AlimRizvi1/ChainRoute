@@ -49,10 +49,10 @@ async function scenario(name, cargoType, quantityTonnes, target, freightValuePai
     record.scenarios[name] = { contractId: existing.rows[0].contract_id, planId: existing.rows[0].plan_id, state: existing.rows[0].state };
     save(); return;
   }
-  // Finish the late reference first, advancing the local demo clock only about
-  // 13 hours. Active contracts and pending orders are created afterwards.
+  // Leave a feasible planning horizon before simulating a 13-hour late delivery.
+  // Active contracts and pending orders are created after this clock advance.
   await chain.send('evm_mine', []);
-  const deadline = Math.max(await chainTime(), Math.floor(Date.now() / 1000)) + (target === 'Closed' ? 120 : 4 * 86400);
+  const deadline = Math.max(await chainTime(), Math.floor(Date.now() / 1000)) + (target === 'Closed' ? 60 * 3600 : 4 * 86400);
   const order = await api('POST', '/orders', 'shipper', { cargoType, quantityTonnes, destination: 'Port-A', priority: 1, deadline: iso(deadline) }, undefined, 201);
   const plan = await api('POST', '/optimizations/run', 'shipper', { weights: { onTime: 0.5, cost: 0.3, utilization: 0.2 }, timeBudgetSeconds: 0.5 });
   assert.ok(plan.assignments.some((a) => a.orderId === order.orderId), 'Demo order must be assigned by the real engine');

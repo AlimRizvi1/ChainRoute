@@ -43,14 +43,17 @@ export function createOrder(input: OrderInput) {
 
 export function runOptimization(weights: Weights, sourcePlanId?: string) {
   return apiRequest<AllocationPlan | { status: "empty"; message: string; plan: null }>("/optimizations/run", {
+    signal: AbortSignal.timeout(70_000),
     method: "POST", body: { weights, timeBudgetSeconds: 5, ...(sourcePlanId ? { sourcePlanId } : {}) },
   });
 }
 
-export function acceptPlan(planId: string, input: AcceptInput) {
+export async function acceptPlan(planId: string, input: AcceptInput) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify({ planId, input })));
+  const fingerprint = Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, "0")).join("");
   return apiRequest<ContractAcceptance | QueuedAcceptance>(`/plans/${encodeURIComponent(planId)}/accept`, {
     method: "POST",
-    headers: { "Idempotency-Key": `dashboard-accept-${planId}` },
+    headers: { "Idempotency-Key": `dashboard-accept-${fingerprint}` },
     body: input,
   });
 }

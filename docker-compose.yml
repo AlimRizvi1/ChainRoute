@@ -9,7 +9,7 @@ services:
       ALLOCATION_PLAN_PATH: /app/allocation-plan.json
       AI_RUN_LOG_PATH: /data/optimization-runs.sqlite3
     ports:
-      - "${AI_ENGINE_PORT:-8000}:8000"
+      - "127.0.0.1:${AI_ENGINE_PORT:-8000}:8000"
     volumes:
       - ai-run-logs:/data
     healthcheck:
@@ -29,7 +29,10 @@ services:
     environment:
       CHAIN_RPC_URL: http://127.0.0.1:8545
     ports:
-      - "${CHAIN_RPC_PORT:-8545}:8545"
+      - "127.0.0.1:${CHAIN_RPC_PORT:-8545}:8545"
+    volumes:
+      - chain-data:/data
+    stop_grace_period: 30s
     healthcheck:
       test:
         - CMD
@@ -89,7 +92,7 @@ services:
       POSTGRES_USER: "${POSTGRES_USER:-chainroute}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-chainroute-local}"
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -119,7 +122,7 @@ services:
       DEPENDENCY_TIMEOUT_MS: "${DEPENDENCY_TIMEOUT_MS:-5000}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     volumes:
       - contract-artifacts:/shared:ro
     depends_on:
@@ -151,7 +154,7 @@ services:
     environment:
       VITE_API_TARGET: http://backend:8080
     ports:
-      - "${DASHBOARD_PORT:-5173}:5173"
+      - "127.0.0.1:${DASHBOARD_PORT:-5173}:5173"
     depends_on:
       backend:
         condition: service_healthy
@@ -167,6 +170,7 @@ services:
       start_period: 10s
 
 volumes:
+  chain-data:
   ai-run-logs:
   postgres-data:
   contract-artifacts:

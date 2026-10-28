@@ -1,0 +1,45 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { randomUUID, randomBytes } = require('node:crypto');
+const { Pool } = require('pg');
+const { resolve } = require('node:path');
+const { createPlatformApp } = require('../dist/app.js');
+const { runMigrations } = require('../dist/db/migrations.js');
+const { seedDemoData } = require('../dist/db/seed.js');
+
+test('resource management, saved-plan ownership and audit visibility follow role permissions', {skip:!process.env.TEST_DATABASE_URL}, async t => {
+  process.env.DEMO_USER_PASSWORD=randomBytes(24).toString('hex');
+  const schema=`platform_${randomUUID().replaceAll('-','')}`;
+  const setup=new Pool({connectionString:process.env.TEST_DATABASE_URL}); await setup.query(`CREATE SCHEMA ${schema}`);
+  const db=new Pool({connectionString:process.env.TEST_DATABASE_URL,options:`-c search_path=${schema},public`});
+  await runMigrations(db); await seedDemoData(db,resolve(__dirname,'../../samples/plentiful-dataset.json'));
+  const app=await createPlatformApp({database:db,tokenSecret:randomBytes(32).toString('hex'),logger:false});
+  t.after(async()=>{await app.close(); await setup.query(`DROP SCHEMA ${schema} CASCADE`);await setup.end();});
+  const tokens={};for(const role of ['shipper','carrier','administrator','auditor']) {const user=(await db.query('select user_id,role from users where username=$1',[`demo.${role}`])).rows[0];tokens[role]=app.jwt.sign({sub:user.user_id,role:user.role});}
+  const call=(role,method,url,payload)=>app.inject({method,url,headers:{authorization:`Bearer ${tokens[role]}`},...(payload?{payload}:{})});
+  assert.equal((await call('shipper','GET','/planning/resources')).statusCode,200);
+  assert.equal((await call('carrier','GET','/planning/resources')).statusCode,403);
+  assert.equal((await call('auditor','GET','/admin/wagons')).statusCode,403);
+  const wagon={wagonId:'TEST-W',capacityTonnes:40,wagonType:'covered',location:'Yard-A',available:true,active:true};
+  assert.equal((await call('shipper','PUT','/admin/wagons',wagon)).statusCode,403);
+  assert.equal((await call('administrator','PUT','/admin/wagons',wagon)).statusCode,200);
+  assert.equal((await call('administrator','PUT','/admin/wagons',{...wagon,capacityTonnes:0})).statusCode,400);
+  assert.equal((await call('administrator','PUT','/admin/wagons',{...wagon,active:false})).statusCode,200);
+  const list=(await call('administrator','GET','/admin/wagons')).json().items;
+  assert.equal(list.find(w=>w.wagonId==='TEST-W').active,false);
+  const route={routeId:'TEST-R',origin:'Yard-A',destination:'Test',distanceKm:10,transitTimeSeconds:3600,active:true};
+  assert.equal((await call('administrator','PUT','/admin/routes',route)).statusCode,200);
+  const audit=await call('auditor','GET','/audit?search=admin.wagons.save');assert.equal(audit.statusCode,200);
+  assert.ok(audit.json().items.length>=2);assert.equal(audit.json().items[0].actor,'demo.administrator');
+  assert.equal(audit.json().items[0].details,undefined);
+  assert.equal((await call('shipper','GET','/audit')).statusCode,403);
+  assert.equal((await call('carrier','GET','/plans')).statusCode,403);
+  const shipper=(await db.query("select user_id from users where username='demo.shipper'")).rows[0].user_id;
+  await db.query("INSERT INTO optimization_runs(run_id,status) VALUES('RUN-OWN','running')");
+  await db.query("INSERT INTO allocation_plans(plan_id,run_id,created_by,plan_payload,score,scenario_group_id) VALUES('PLAN-OWN','RUN-OWN',$1,$2,0.5,'PLAN-OWN')",[shipper,JSON.stringify({assignments:[],metrics:{}})]);
+  assert.equal((await call('shipper','GET','/plans')).json().items[0].planId,'PLAN-OWN');
+  const other=(await db.query("INSERT INTO users(user_id,username,role) VALUES($1,'other.shipper','Shipper') RETURNING user_id",[randomUUID()])).rows[0].user_id;
+  tokens.other=app.jwt.sign({sub:other,role:'Shipper'});
+  assert.equal((await call('other','GET','/plans')).json().items.length,0);
+  assert.equal((await call('administrator','GET','/plans')).json().items.length,1);
+});

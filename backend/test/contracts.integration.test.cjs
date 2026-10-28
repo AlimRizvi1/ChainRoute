@@ -190,8 +190,8 @@ test(
     await reconcileContract(pool, settlement, contractId);
     const repairedCache = await pool.query("SELECT state, penalty_paise::text, net_payment_paise::text FROM contracts WHERE contract_id = $1", [contractId]);
     assert.deepEqual(repairedCache.rows[0], { state: "Closed", penalty_paise: "150000", net_payment_paise: "2326000" }, "on-chain ledger repairs corrupted cached values");
-    const eventCount = await waitForDatabaseEvents(pool, contractId, 10);
-    assert.ok(eventCount >= 10, `expected lifecycle events in the PostgreSQL cache, found ${eventCount}`);
+    const eventCount = await waitForDatabaseEvents(pool, contractId, onChain[1].length);
+    assert.equal(eventCount, onChain[1].length, `expected the full lifecycle in the PostgreSQL cache, found ${eventCount}`);
     const cachedDetail = await app.inject({ method: "GET", url: `/contracts/${contractId}`, headers: shipperHeaders });
     assert.equal(cachedDetail.statusCode, 200, cachedDetail.body);
     assert.equal(cachedDetail.json().history.some((event) => event.action === "DeliveryConfirmed"), true, JSON.stringify({ contractId, eventCount, history: cachedDetail.json().history }));

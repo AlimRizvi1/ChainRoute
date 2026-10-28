@@ -84,9 +84,13 @@ export async function registerAuthentication(
     const action = request.routeOptions.config.auditAction ??
       `${request.method} ${request.routeOptions.url ?? request.url.split("?")[0]}`;
     const routeParams = request.params as Record<string, unknown>;
-    const resourceId = ["contractId", "planId", "orderId", "userId", "wagonId", "routeId"]
+    const routeResourceId = ["contractId", "planId", "orderId", "userId", "wagonId", "routeId"]
       .map((key) => routeParams?.[key])
       .find((value): value is string => typeof value === "string") ?? null;
+    const resourceBody = request.body as { wagonId?: unknown; routeId?: unknown } | undefined;
+    const bodyResourceId = request.routeOptions.config.auditResourceType === "wagon" ? resourceBody?.wagonId
+      : request.routeOptions.config.auditResourceType === "route" ? resourceBody?.routeId : null;
+    const resourceId = routeResourceId ?? (typeof bodyResourceId === "string" && bodyResourceId.length <= 128 ? bodyResourceId : null);
     try {
       await database.query(
         `INSERT INTO audit_trail (

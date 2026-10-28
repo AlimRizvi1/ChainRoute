@@ -1,0 +1,53 @@
+.algorithm-theatre { margin: 1.6rem 0; border: 1px solid #b9b9aa; background: #f8f6ef; overflow: hidden; }
+.algorithm-title { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: .6rem; padding: 1.1rem 1.3rem; background: #18261f; color: #f8f6ef; }
+.algorithm-title h3 { margin: 0; font-size: 1.2rem; }
+.algorithm-title > span { font-size: .75rem; color: #f0ca77; }
+.algorithm-caption { font-size: .83rem; line-height: 1.65; padding: 0 1.3rem; max-width: 76ch; }
+.model-training-path { padding: .7rem 1.3rem; margin: 0; font-size: .77rem; line-height: 1.7; background: #eee9dd; }
+.algorithm-scroll { overflow-x: auto; scrollbar-color: #8c640f #e7e2d6; }
+.diagram-scroll-hint { display: none; }
+.allocation-diagram { display: block; width: 100%; min-width: 640px; font-family: Manrope, sans-serif; font-size: 15px; }
+.algorithm-edge { stroke: #b9b9aa; stroke-width: 2; fill: none; stroke-dasharray: 7 5; transition: stroke .2s; }
+.algorithm-edge.is-active { stroke: #276340; stroke-width: 4; }
+.algorithm-edge.is-greedy { stroke: #92640c; }
+.algorithm-edge.is-unavailable { opacity: .45; stroke-dasharray: 3 8; }
+.algorithm-edge.is-conflict { stroke: #a43c2c; stroke-width: 4; opacity: 1; }
+.algorithm-node rect { fill: #e7e2d6; stroke: #929c90; stroke-width: 1.5; transition: fill .25s, stroke .25s; }
+.algorithm-node text { fill: #18261f; }
+.algorithm-node .node-title { font-size: 17px; font-weight: 800; }
+.algorithm-node.is-assigned rect { fill: #e1eddf; stroke: #276340; stroke-width: 2.5; }
+.algorithm-node.has-conflict rect { fill: #f7e0d8; stroke: #a43c2c; }
+.conflict-token circle { fill: #a43c2c; }
+.conflict-token path { stroke: #fff; stroke-width: 3; }
+.route-rejection { fill: #a43c2c; font-size: 14px; font-weight: 800; }
+.route-confirmation { fill: #276340; font-size: 12px; font-weight: 800; }
+.algorithm-narration { padding: 1.1rem 1.3rem; border-block: 1px solid #c8c6b9; background: #eee9dd; min-height: 8rem; }
+.algorithm-narration > span { font-size: .75rem; font-variant-numeric: tabular-nums; }
+.algorithm-narration h4 { margin: .35rem 0; font-size: 1.1rem; }
+.algorithm-narration p { margin: .4rem 0 0; font-size: .88rem; line-height: 1.65; max-width: 72ch; }
+.teaching-controls { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; padding: 1rem 1.3rem; }
+.teaching-controls > label { display: flex; align-items: center; gap: .45rem; font-size: .78rem; }
+.teaching-controls select { padding: .4rem; background: #fffdf6; border: 1px solid #7a8277; color: #18261f; }
+.teaching-controls > .text-link { appearance: none; background: transparent; border: 0; padding: .6rem .25rem; color: #18261f; font: inherit; font-size: .82rem; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.algorithm-steps { display: flex; list-style: none; padding: .2rem 1.3rem 1.2rem; margin: 0; gap: .4rem; flex-wrap: wrap; }
+.algorithm-steps li { flex: 1; min-width: 70px; }
+.algorithm-steps button { display: flex; gap: .3rem; flex-direction: column; width: 100%; min-height: 4.8rem; background: transparent; color: #18261f; padding: .55rem; border: 1px solid #b9b9aa; text-align: left; font: inherit; cursor: pointer; }
+.algorithm-steps button span { font-size: .65rem; line-height: 1.4; }
+.algorithm-steps button[aria-current="step"] { background: #d29a28; border-color: #8c640f; font-weight: 800; }
+.algorithm-steps button:hover { border-color: #18261f; }
+.logistic-workbench { display: grid; grid-template-columns: minmax(240px, .9fr) minmax(0, 1.3fr); gap: 1.5rem; align-items: center; padding: 1rem 1.3rem 1.5rem; }
+.feature-calculation { list-style: none; margin: 0; padding: 0; }
+.feature-calculation li { padding: .8rem; border-bottom: 1px solid #b9b9aa; transition: background .25s; }
+.feature-calculation li.is-active { background: #e8e2d1; }
+.feature-calculation span { display: block; font-size: .75rem; margin-bottom: .3rem; }
+.feature-calculation strong { font-size: 1.03rem; font-variant-numeric: tabular-nums; }
+.sigmoid-plot svg { display: block; width: 100%; overflow: visible; font-size: 14px; fill: #18261f; }
+.sigmoid-plot > p { text-align: center; font-variant-numeric: tabular-nums; font-size: .87rem; }
+.plot-axis { stroke: #727a6f; stroke-width: 1.5; fill: none; }
+.plot-threshold { stroke: #8a8571; stroke-width: 1; stroke-dasharray: 4 5; }
+.sigmoid-curve { stroke: #b44b38; stroke-width: 4; stroke-dasharray: none; }
+.sigmoid-curve.is-active { stroke: #276340; }
+.plot-marker-guide { stroke: #8b6413; stroke-width: 1.5; stroke-dasharray: 3 4; fill: none; }
+.probability-marker { fill: #d29a28; stroke: #18261f; stroke-width: 2; }
+@media (max-width: 760px) { .logistic-workbench { grid-template-columns: 1fr; gap: 1rem; } .feature-calculation { display: grid; grid-template-columns: 1fr 1fr; } .teaching-controls .secondary-button { flex: 1; } .teaching-controls .secondary-button:first-child { flex: 1 0 100%; } .algorithm-steps li { min-width: 84px; } .diagram-scroll-hint { display: block; margin: 0; padding: .6rem 1.3rem; font-size: .75rem; } .sigmoid-plot svg { font-size: 20px; } }
+@media (prefers-reduced-motion: reduce) { .algorithm-theatre * { transition: none !important; animation: none !important; } }

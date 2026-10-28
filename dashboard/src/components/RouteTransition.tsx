@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { Outlet, useLocation } from "react-router";
@@ -6,6 +6,7 @@ import { Outlet, useLocation } from "react-router";
 export function RouteTransition() {
   const container = useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
 
   useGSAP(() => {
     const media = gsap.matchMedia();

@@ -4,6 +4,7 @@ import { AuthProvider } from "../auth/context";
 import { writeSession } from "../auth/session";
 import { getAccounts, getInvitations, createInvitation, revokeInvitation, setAccountActive } from "../api/accounts";
 import { AdminAccountsPage } from "./AdminAccountsPage";
+import { MemoryRouter } from "react-router";
 vi.mock("../api/accounts", () => ({ getAccounts: vi.fn(), getInvitations: vi.fn(), createInvitation: vi.fn(), revokeInvitation: vi.fn(), setAccountActive: vi.fn() }));
 afterEach(() => { cleanup(); sessionStorage.clear(); vi.clearAllMocks(); });
 function mount() {
@@ -13,7 +14,7 @@ function mount() {
     { id: "carrier-1", username: "new.carrier", role: "Carrier", active: true, walletMapped: false, createdAt: "2026-10-19T00:00:00Z" },
   ] });
   vi.mocked(getInvitations).mockResolvedValue({ items: [{ id: "invite-1", role: "Auditor", expiresAt: "2027-01-01T00:00:00Z" }] });
-  return render(<AuthProvider><AdminAccountsPage /></AuthProvider>);
+  return render(<MemoryRouter><AuthProvider><AdminAccountsPage /></AuthProvider></MemoryRouter>);
 }
 describe("administrator account access", () => {
   it("creates an invitation with the selected role and displays the one-time link", async () => {

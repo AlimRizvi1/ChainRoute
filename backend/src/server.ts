@@ -23,7 +23,7 @@ function getTokenSecret(): string {
   if (configured && Buffer.byteLength(configured, "utf8") < 32) {
     throw new Error("AUTH_TOKEN_SECRET must contain at least 32 UTF-8 bytes.");
   }
-  return configured ?? randomBytes(32).toString("base64url");
+  return configured || randomBytes(32).toString("base64url");
 }
 
 async function start(): Promise<void> {
@@ -37,6 +37,7 @@ async function start(): Promise<void> {
     database,
     tokenSecret: getTokenSecret(),
     dependencyTimeoutMs,
+    aiEngineUrl: process.env.AI_ENGINE_URL,
     chainRpcUrl: process.env.CHAIN_RPC_URL,
     contractPath: process.env.CONTRACT_FILE,
     logLevel: process.env.LOG_LEVEL,

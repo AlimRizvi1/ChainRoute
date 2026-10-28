@@ -1,5 +1,8 @@
 import { OrdersPage } from "./OrdersPage";
 import { AiLabPage } from "./AiLabPage";
+import { BlockchainPage } from "./BlockchainPage";
+import { AuditPage, SavedPlansPage } from "./RecordsPages";
+import { AdminResourcesPage } from "./AdminResourcesPage";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate } from "react-router";
 import { API_MODE } from "../api/client";
@@ -36,10 +39,13 @@ export function AppRoutes() {
           <Route path="overview" element={<OverviewPage />} />
           <Route path="orders" element={<PermissionPage path="/orders" title="Freight orders"><OrdersPage /></PermissionPage>} />
           <Route path="ai-lab" element={<AiLabPage />} />
+          <Route path="blockchain" element={<BlockchainPage />} />
+          <Route path="plans" element={<PermissionPage path="/plans" title="Saved plans"><SavedPlansPage /></PermissionPage>} />
+          <Route path="admin/resources" element={<PermissionPage path="/admin/resources" title="Yard resources"><AdminResourcesPage /></PermissionPage>} />
           <Route path="allocations" element={<PermissionPage path="/allocations" title="Allocations"><OptimizationPage /></PermissionPage>} />
           <Route path="contracts" element={<PermissionPage path="/contracts" title="Contracts"><ContractsPage /></PermissionPage>} />
           <Route path="contracts/:contractId" element={<PermissionPage path="/contracts" title="Contracts"><ContractsPage /></PermissionPage>} />
-          <Route path="audit" element={<PermissionPage path="/audit" title="Audit trail"><Navigate to="/contracts" replace /></PermissionPage>} />
+          <Route path="audit" element={<PermissionPage path="/audit" title="Audit trail"><AuditPage /></PermissionPage>} />
           <Route path="admin" element={<PermissionPage path="/admin" title="Administration"><AdminAccountsPage /></PermissionPage>} />
           <Route path="*" element={<Navigate to="/overview" replace />} />
           </Route>
@@ -76,7 +82,7 @@ function WorkspaceShell() {
         <p className="nav-label">WORKSPACE</p>
         <nav className="workspace-nav">
           {navigation.map((item) => (
-            <NavLink key={item.href} end={item.href === "/overview"} to={item.href}>
+            <NavLink key={item.href} end={item.href === "/overview" || item.href === "/admin"} to={item.href}>
               <NavIcon path={item.href} />{item.label}
             </NavLink>
           ))}
@@ -190,6 +196,9 @@ function NavIcon({ path }: { path: string }) {
     "/orders": <><path d="M7 5h13M7 12h13M7 19h13" /><path d="M3.5 5h.01M3.5 12h.01M3.5 19h.01" /></>,
     "/allocations": <><path d="M4 18h5l3-12h8" /><path d="m16 3 4 3-4 3" /><circle cx="5" cy="18" r="1.5" /></>,
     "/contracts": <><path d="M6 3h9l4 4v14H6z" /><path d="M14 3v5h5M9 13h7M9 17h7" /></>,
+    "/plans": <><path d="M7 4h13v16H7zM4 7v14h13M10 8h7M10 12h7M10 16h4" /></>,
+    "/blockchain": <><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" /><path d="m4 7.5 8 4.5 8-4.5M12 12v9M8 5.3l8 4.5" /></>,
+    "/admin/resources": <><path d="M3 7h15v9H3zM18 10h3v6h-3M2 20h20" /><circle cx="6" cy="17" r="2" /><circle cx="16" cy="17" r="2" /></>,
     "/audit": <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /></>,
     "/admin": <><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" /><path d="m19 13.5 2 .9-2 3.5-2-.9a8 8 0 0 1-2 1.2l-.4 2.2h-4l-.4-2.2a8 8 0 0 1-2-1.2l-2 .9-2-3.5 2-.9a8 8 0 0 1 0-2.4l-2-.9 2-3.5 2 .9a8 8 0 0 1 2-1.2L10.6 4h4l.4 2.2a8 8 0 0 1 2 1.2l2-.9 2 3.5-2 .9a8 8 0 0 1 0 2.6Z" /></>,
   };

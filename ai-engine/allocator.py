@@ -58,9 +58,18 @@ def build_allocation_plan(request: OptimizeRequest) -> dict:
         "predictionMethod": "not_run",
         "modelVersion": None,
     }
+    # Algorithms and the trained model use one fixed coordinate origin. Shift
+    # operational deadlines into that origin, then translate all returned ETAs
+    # back. Time differences, feasibility and model features remain identical;
+    # no shared global clock is mutated during concurrent requests.
+    clock_offset = (request.planningStart - SYNTHETIC_START) if request.planningStart else timedelta(0)
+    engine_request = request.model_copy(update={
+        "orders": [order.model_copy(update={"deadline": order.deadline - clock_offset}) for order in request.orders],
+        "planningStart": None,
+    }) if request.planningStart else request
     try:
         result = _build_allocation_plan(
-            request=request,
+            request=engine_request,
             run_id=run_id,
             started_at=started_at,
             input_hash=input_hash,
@@ -91,6 +100,11 @@ def build_allocation_plan(request: OptimizeRequest) -> dict:
         )
         raise
 
+    if request.planningStart:
+        for assignments in [result["assignments"], *[alternative["assignments"] for alternative in result["alternatives"]]]:
+            for assignment in assignments:
+                for field in ("departAt", "eta"):
+                    assignment[field] = (datetime.fromisoformat(assignment[field].replace("Z", "+00:00")) + clock_offset).isoformat()
     completed_timestamp = datetime.now(timezone.utc)
     write_run_record(
         _create_run_record(

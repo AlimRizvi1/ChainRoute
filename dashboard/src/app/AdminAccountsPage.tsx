@@ -1,5 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { API_MODE } from "../api/client";
+import { Link } from "react-router";
+import { provisionWallet } from "../api/platform";
+import "./platform.css";
 import { createInvitation, getAccounts, getInvitations, revokeInvitation, setAccountActive, type Account, type Invitation } from "../api/accounts";
 import { useAuth } from "../auth/context";
 import { ROLES, type Role } from "../auth/roles";
@@ -62,6 +65,7 @@ export function AdminAccountsPage() {
   return <section className="accounts-page" aria-labelledby="accounts-title">
     <header className="overview-heading"><div><h1 id="accounts-title">People & access</h1><p className="overview-intro">Invite the right people into the yard. Each account works within its assigned role.</p></div></header>
     {API_MODE === "mock" && <p className="form-notice">Account changes are unavailable in this sample workspace.</p>}
+    <p className="workflow-links"><Link to="/admin/resources">Manage wagons & routes</Link><Link to="/audit">Review audit trail</Link></p>
     {error && <p className="form-error" role="alert">{error} <button type="button" className="text-link" onClick={() => { setError(null); setRevision((value) => value + 1); }}>Retry loading</button></p>}
     <section className="access-invite" aria-labelledby="invite-title">
       <div><h2 id="invite-title">Invite a teammate</h2><p>Links expire after 24 hours and can be used once. Share the link directly with the intended person.</p></div>
@@ -71,7 +75,7 @@ export function AdminAccountsPage() {
     {loading ? <LoadingState label="Loading account access…" /> : <>
       <section className="access-directory" aria-labelledby="directory-title"><div className="panel-heading"><h2 id="directory-title">Accounts</h2><span>Latest {accounts.length} accounts</span></div>
         <p>Disabling an account blocks its next protected request and future sign-ins. Your own administrator account stays active.</p>
-        {accounts.length ? <ul className="account-directory">{accounts.map((account) => <li key={account.id}><div><strong>{account.username}</strong><span>{account.role} · {account.active ? "Active" : "Disabled"} · {account.walletMapped ? "Wallet configured" : "Wallet not configured"}</span></div><button className="secondary-button" type="button" disabled={Boolean(busy) || account.id === session?.user.id} onClick={() => void change(account.id, () => setAccountActive(account.id, !account.active))}>{busy === account.id ? "Saving…" : `${account.active ? "Disable" : "Enable"} ${account.username}`}</button></li>)}</ul> : <p>No accounts to show.</p>}
+        {accounts.length ? <ul className="account-directory">{accounts.map((account) => <li key={account.id}><div><strong>{account.username}</strong><span>{account.role} · {account.active ? "Active" : "Disabled"} · {account.walletMapped ? "Wallet configured" : "Wallet not configured"}</span></div><div className="account-actions">{!account.walletMapped && (account.role === "Shipper" || account.role === "Carrier") && <button className="secondary-button" type="button" disabled={Boolean(busy) || API_MODE === "mock"} onClick={() => void change(account.id, () => provisionWallet(account.id))}>Assign local wallet to {account.username}</button>}<button className="secondary-button" type="button" disabled={Boolean(busy) || account.id === session?.user.id} onClick={() => void change(account.id, () => setAccountActive(account.id, !account.active))}>{busy === account.id ? "Saving…" : `${account.active ? "Disable" : "Enable"} ${account.username}`}</button></div></li>)}</ul> : <p>No accounts to show.</p>}
       </section>
       <section className="access-directory" aria-labelledby="pending-title"><h2 id="pending-title">Pending invitations</h2>{invitations.length ? <ul className="account-directory">{invitations.map((invitation) => <li key={invitation.id}><div><strong>{invitation.role}</strong><span>Expires {new Date(invitation.expiresAt).toLocaleString()}</span></div><button className="secondary-button" type="button" disabled={Boolean(busy)} onClick={() => void change(invitation.id, () => revokeInvitation(invitation.id))}>Revoke invitation</button></li>)}</ul> : <p>No unused invitations. Create a link above when someone is ready to join.</p>}</section>
     </>}

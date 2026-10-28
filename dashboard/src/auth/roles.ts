@@ -58,10 +58,13 @@ export const NAVIGATION: readonly NavigationItem[] = [
   { label: "Overview", href: "/overview" },
   { label: "Freight orders", href: "/orders", permission: "orders.create" },
   { label: "Allocations", href: "/allocations", permission: "plans.read" },
+  { label: "Saved plans", href: "/plans", permission: "plans.read" },
   { label: "CP-SAT & ML lab", href: "/ai-lab" },
   { label: "Contracts", href: "/contracts", permission: "contracts.read" },
+  { label: "Blockchain", href: "/blockchain" },
   { label: "Audit trail", href: "/audit", permission: "audit.read" },
   { label: "Administration", href: "/admin", permission: "admin.users" },
+  { label: "Yard resources", href: "/admin/resources", permission: "admin.wagons" },
 ];
 
 export function navigationForRole(role: Role): NavigationItem[] {

@@ -750,8 +750,11 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: "./ai-engine.schema.json#/$defs/wagon" }
+                type: object
+                required: [items, limit]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/MasterWagon" } }
+                  limit: { type: integer, const: 2000 }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -762,17 +765,31 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "./ai-engine.schema.json#/$defs/wagon" }
+            schema: { $ref: "#/components/schemas/MasterWagon" }
       responses:
         "201":
           description: Wagon created.
           content:
             application/json:
-              schema: { $ref: "./ai-engine.schema.json#/$defs/wagon" }
+              schema: { $ref: "#/components/schemas/MasterWagon" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+    put:
+      tags: [Administration]
+      summary: Save a master resource by ID (create or replace)
+      description: Administrator only. Full body required, including active. Existing saved plans retain their original snapshots.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MasterWagon" }
+      responses:
+        "200": { description: Resource saved. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /admin/wagons/{wagonId}:
     parameters:
       - name: wagonId
@@ -787,13 +804,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "./ai-engine.schema.json#/$defs/wagon" }
+            schema: { $ref: "#/components/schemas/MasterWagon" }
       responses:
         "200":
           description: Wagon updated.
           content:
             application/json:
-              schema: { $ref: "./ai-engine.schema.json#/$defs/wagon" }
+              schema: { $ref: "#/components/schemas/MasterWagon" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -809,8 +826,11 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: "./ai-engine.schema.json#/$defs/route" }
+                type: object
+                required: [items, limit]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/MasterRoute" } }
+                  limit: { type: integer, const: 2000 }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -821,17 +841,31 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "./ai-engine.schema.json#/$defs/route" }
+            schema: { $ref: "#/components/schemas/MasterRoute" }
       responses:
         "201":
           description: Route created.
           content:
             application/json:
-              schema: { $ref: "./ai-engine.schema.json#/$defs/route" }
+              schema: { $ref: "#/components/schemas/MasterRoute" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+    put:
+      tags: [Administration]
+      summary: Save a master resource by ID (create or replace)
+      description: Administrator only. Full body required, including active. Existing saved plans retain their original snapshots.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MasterRoute" }
+      responses:
+        "200": { description: Resource saved. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /admin/routes/{routeId}:
     parameters:
       - name: routeId
@@ -846,13 +880,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "./ai-engine.schema.json#/$defs/route" }
+            schema: { $ref: "#/components/schemas/MasterRoute" }
       responses:
         "200":
           description: Route updated.
           content:
             application/json:
-              schema: { $ref: "./ai-engine.schema.json#/$defs/route" }
+              schema: { $ref: "#/components/schemas/MasterRoute" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -877,13 +911,12 @@ paths:
           in: query
           required: false
           schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
-        - name: cursor
-          in: query
-          required: false
-          schema: { type: string }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, maximum: 100000, default: 0 } }
+        - { name: search, in: query, schema: { type: string, maxLength: 128 } }
+        - { name: outcome, in: query, schema: { type: string, enum: [success, failure] } }
       responses:
         "200":
-          description: Audit entries and an optional next-page cursor.
+          description: Audit entries, total count and optional next offset.
           content:
             application/json:
               schema:
@@ -894,9 +927,61 @@ paths:
                   items:
                     type: array
                     items: { $ref: "#/components/schemas/AuditEntry" }
-                  nextCursor: { type: [string, "null"] }
+                  total: { type: integer }
+                  nextOffset: { type: [integer, "null"] }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /plans:
+    get:
+      tags: [Orders and plans]
+      summary: List saved plans owned by the Shipper, or all plans for Administrator
+      parameters:
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, maximum: 100000, default: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+      responses:
+        "200": { description: "items (planId, runId, createdAt, assignmentCount, metrics, contractId), total, nextOffset." }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /planning/resources:
+    get:
+      tags: [Orders and plans]
+      summary: List active mapped carriers, available yard types and active route endpoints
+      description: Shipper and Administrator only. Returns walletMapped, carriers, yards and routes.
+      responses:
+        "200": { description: Planning resource directory. }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /blockchain/blocks:
+    get:
+      tags: [System]
+      summary: Read public block headers and transaction hashes without commercial calldata
+      description: Bounded history windows. Use from=0 to start at Genesis, from for forward paging, or before for backward paging. Omit both to read the latest window. Every response includes the original Genesis header. Block timestamps come from the node and are not changed during replay.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 20, default: 12 } }
+        - { name: before, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: from, in: query, description: "Inclusive first height; mutually exclusive with before.", schema: { type: integer, minimum: 0 } }
+      responses:
+        "200": { description: "chainId, head, clientVersion, observedAt, localDevelopment, canMine, contractAddress, genesis, nextFrom, nextBefore and blocks in ascending height order. Each header includes its original UTC ISO timestamp." }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /blockchain/demo-block:
+    post:
+      tags: [Administration]
+      summary: Mine one empty demonstration block on development chain 31337
+      description: Administrator only. Disabled in production and on other chain IDs. Audited; limited to 12 requests per minute.
+      responses:
+        "200": { description: New block number. }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /admin/users/{userId}/local-wallet:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Administration]
+      summary: Assign an unused local development signing wallet to a Shipper or Carrier
+      description: Administrator only. Idempotent for mapped accounts. Refuses production, nonlocal chains and fixed role signers. Keys are never returned or stored in PostgreSQL.
+      responses:
+        "200": { description: walletMapped and public address. }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 components:
   securitySchemes:
     bearerAuth:
@@ -1173,11 +1258,36 @@ components:
     AuditEntry:
       type: object
       additionalProperties: false
-      required: [auditId, userId, action, occurredAt, outcome]
+      required: [id, actor, action, occurredAt, outcome, statusCode]
       properties:
-        auditId: { type: string }
-        userId: { type: string }
+        id: { type: string }
+        actor: { type: string }
+        resourceType: { type: [string, "null"] }
+        statusCode: { type: integer }
         action: { type: string }
         resourceId: { type: [string, "null"] }
         occurredAt: { type: string, format: date-time }
         outcome: { type: string, enum: [success, failure] }
+
+    MasterWagon:
+      type: object
+      additionalProperties: false
+      required: [wagonId, capacityTonnes, wagonType, location, available]
+      properties:
+        wagonId: { type: string, minLength: 1, maxLength: 128 }
+        capacityTonnes: { type: number, exclusiveMinimum: 0, maximum: 1000000000, multipleOf: 0.001 }
+        wagonType: { type: string, minLength: 1, maxLength: 128 }
+        location: { type: string, minLength: 1, maxLength: 128 }
+        available: { type: boolean }
+        active: { type: boolean, default: true }
+    MasterRoute:
+      type: object
+      additionalProperties: false
+      required: [routeId, origin, destination, distanceKm, transitTimeSeconds]
+      properties:
+        routeId: { type: string, minLength: 1, maxLength: 128 }
+        origin: { type: string, minLength: 1, maxLength: 128 }
+        destination: { type: string, minLength: 1, maxLength: 128 }
+        distanceKm: { type: number, exclusiveMinimum: 0, maximum: 1000000000, multipleOf: 0.001 }
+        transitTimeSeconds: { type: integer, minimum: 1, maximum: 2147483647 }
+        active: { type: boolean, default: true }

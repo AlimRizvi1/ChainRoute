@@ -124,7 +124,7 @@ export async function registerContractRoutes(
       const actor = request.actor!;
       const isParty = actor.userId === row.shipper_id || actor.userId === row.carrier_id;
       const historyResult = await database.query<{ action: string; actor_address: string; occurred_at: Date; data_hash: string; payload: Record<string, unknown> }>(
-        "SELECT action, actor_address, occurred_at, data_hash, payload FROM contract_events WHERE contract_id = $1 ORDER BY occurred_at, contract_event_id",
+        "SELECT action, actor_address, occurred_at, data_hash, payload FROM contract_events WHERE contract_id = $1 ORDER BY block_number, log_index, contract_event_id",
         [row.contract_id],
       );
       const history = historyResult.rows.map((event) => ({
@@ -566,7 +566,7 @@ function queuedReply(reply: FastifyReply, operationId: string) {
 function isChainUnavailable(error: unknown): boolean {
   if (error instanceof ActionError) return false;
   const message = error instanceof Error ? error.message : String(error);
-  return /ECONNREFUSED|ECONNRESET|ETIMEDOUT|network error|fetch failed|could not detect network|timeout|socket hang up|SERVER_ERROR|missing response/i.test(message);
+  return /ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|network error|fetch failed|could not detect network|timeout|socket hang up|SERVER_ERROR|missing response/i.test(message);
 }
 
 async function getVisibleContract(db: Pool, contractId: string, actor: AuthenticatedActor): Promise<ContractRow | undefined> {

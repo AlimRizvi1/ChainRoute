@@ -26,22 +26,22 @@ The foundation is underway: Alim's local Phase 0 checks have passed, while Parth
 4. Confirm a local PostgreSQL container can start and answer a query.
 5. Record working tool versions and evidence in the progress tracker below.
 
-### Run the local walking skeleton
+### Run the complete local prototype
 
-Docker Desktop with Compose v2 is required. The defaults are for local development only. Copy the example environment file if you want to customize ports or the PostgreSQL password:
+Docker Desktop with Compose v2 is required. The defaults are for local development only. Copy the example environment file, set a generated AUTH_TOKEN_SECRET (at least 32 bytes) and DEMO_USER_PASSWORD, and customize PostgreSQL credentials/ports as needed:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up --build
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-demo.ps1
 ```
 
 When the services report healthy, open the dashboard at <http://localhost:5173>. The backend health endpoint is <http://localhost:8080/health>; Track 1 is at <http://localhost:8000/health>, and the local JSON-RPC node is at <http://localhost:8545>.
 
 ### Open the populated frontend demo
 
-Open <http://localhost:5173/login> and sign in as **demo.shipper** using `DEMO_USER_PASSWORD` from your existing root `.env`. The demo setup creates **six pending synthetic orders and five contracts**, including an agreement ready for booking, shipments in transit, a payment-ready delivery, and a closed late settlement. All four demo roles use the same configured local demo password.
+Open <http://localhost:5173/login> and sign in as **demo.shipper** using `DEMO_USER_PASSWORD` from your existing root `.env`. The demo setup creates **six pending synthetic orders and four contracts**, including an agreement ready for booking, shipments in transit, a payment-ready delivery, and a closed late settlement. All four demo roles use the same configured local demo password.
 
-Use **Allocations** to run the queued orders, **Contracts** for tracking and settlement, **demo.carrier** to book/dispatch, and **demo.administrator** to release/close the payment-ready contract. Freight orders opens its own database-backed register with Pending/Planned filters and a new-order form; Audit trail opens the contract ledger and its event histories. See [frontend demo guide](docs/frontend-demo.md).
+Use **Allocations** to run the queued orders, **Contracts** for tracking and settlement, **demo.carrier** to book/dispatch, and **demo.administrator** to release/close the payment-ready contract. Freight orders opens its own database-backed register with Pending/Planned filters and a new-order form; Audit trail now has its own action history with actor/action/outcome filters. Saved plans reopens previous runs, and Administrators can maintain wagons/routes and provision local signing wallets. See [frontend demo guide](docs/frontend-demo.md).
 
 **Freight register and AI lab:** open <http://localhost:5173/orders> for all your persisted freight, including already-Planned orders. Open <http://localhost:5173/ai-lab> from any role to run the live CP-SAT/greedy comparison, vary ML cargo/deadline slack, inspect requests and model identity, and read the saved synthetic accuracy report. Allocations also explains how the returned engine and prediction method contributed to its plan. The lab uses fixed teaching cases and does not consume your order queue. See the [teacher walkthrough](docs/frontend-demo.md).
 
@@ -50,13 +50,19 @@ Use **Allocations** to run the queued orders, **Contracts** for tracking and set
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/seed-frontend-demo.ps1
 ```
 
+**Blockchain showcase:** open <http://localhost:5173/blockchain> from any role. The first window starts at **Genesis (block #0)**, which stays accessible while paging forward/backward or switching to the latest blocks. Full dates, years, seconds and UTC/IST selection display the node's original timestamps, including synthetic shipment-clock advances. Replay preserves those dates; animated parent links and block entries explain how the ledger grows. Administrators can add a local empty demonstration block.
+
+**Animated AI walkthroughs:** the CP-SAT & ML lab now illustrates the scarce-wagon conflict, feasible alternative allocation and final live-engine assignments. The Logistic Regression view follows real model features, learned contributions, logit and sigmoid to the returned probability. Both support pause/play, individual steps, replay, speed and motion controls; reduced-motion and hidden/offscreen states are handled. The candidate walkthrough is a teaching explanation, not a captured internal solver trace. See [interactive demonstration guide](docs/interactive-visualizations.md).
+
+On this workstation, Docker PostgreSQL uses **localhost:55432 / chainroute_live**. The former **chainroute** database remains archived in the same volume; see the demo guide for the transition from the former volatile ledger.
+
 ### Create an account and sign in
 
 Select **Create an account** on the login screen, or visit <http://localhost:5173/signup>. Public registration creates a **Shipper** account with its own username and password. Usernames contain 3–64 letters, numbers, dots, underscores, or hyphens, begin with a letter or number, and are unique without regard to case. Passwords require at least 12 characters and accept up to 256 UTF-8 bytes without truncation. Login ignores username case and surrounding whitespace.
 
 For **Carrier**, **Auditor**, or **Administrator** access, an existing Administrator opens **Administration → People & access**, chooses the intended role, and creates an invitation link. The link is shown once, expires after 24 hours, can be revoked, and can be redeemed by one new account. Share it directly with the intended person; the application does not send email. The server determines the account role, so a signup request cannot choose its own elevated permissions. Administrators can enable or disable accounts; disabled accounts are rejected on their next protected request and cannot log in. Administrators cannot disable their own account.
 
-The four local `demo.*` accounts still use the ignored root `.env` value `DEMO_USER_PASSWORD`. Newly registered accounts use the password chosen during signup. Account registration does not configure an on-chain identity: blockchain writes still need a trusted wallet mapping and matching runtime signer as described in [database/auth configuration](backend/migrations/README.md). This prototype uses username/password registration and 15-minute access tokens; email verification, self-service password recovery, and refresh tokens are not implemented. Sample/mock mode does not create real accounts.
+The four local `demo.*` accounts still use the ignored root `.env` value `DEMO_USER_PASSWORD`. Newly registered accounts use the password chosen during signup. Account registration does not configure an on-chain identity: an Administrator can assign an unused local Shipper/Carrier signing wallet from People & access. Production requires a trusted wallet mapping and matching runtime signer as described in [database/auth configuration](backend/migrations/README.md). This prototype uses username/password registration and 15-minute access tokens; email verification, self-service password recovery, and refresh tokens are not implemented. Sample/mock mode does not create real accounts.
 
 The AI optimize endpoint is `POST http://localhost:8000/v1/optimize`; it validates the shared request contract and returns a deterministic, deadline-feasible CP-SAT allocation ranked with the Phase 5 objective. The optional `timeBudgetSeconds` defaults to 1 second and is bounded from 0.05 to 10 seconds. The deployed `ChainRouteSettlement` contract address and ABI can be inspected at <http://localhost:8080/blockchain/contract>. To submit an optimized sample plan as an on-chain agreement, run `docker compose --profile track2-bridge run --rm track2-bridge`.
 
@@ -119,6 +125,23 @@ npm test -- --network local
 Remove-Item Env:CHAIN_RPC_URL
 ```
 
+### Run the integration validation
+
+The integration validation uses a dedicated Docker project with its own volumes and ports, so it never resets the ordinary development stack. From the repository root:
+
+```powershell
+# Full end-to-end integration: two settlement scenarios, failure drills, SPA routes
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate-integration.ps1
+
+# Full acceptance: integration + all four test suites + blockchain portability
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate-acceptance.ps1
+
+# Reset only: clean validation demo for manual walkthrough
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate-integration.ps1 -ResetOnly
+```
+
+Open <http://localhost:15173> after a reset. Credentials are in ignored `artifacts/integration/.env.validation`. Evidence is written to `artifacts/integration/report.json` and `acceptance.json`. See [integration-validation](docs/integration-validation.md) for the full assertion list, evidence format, and manual recording checklist.
+
 ## Project layout
 
 ```text
@@ -127,8 +150,10 @@ blockchain/         Track 2 — Solidity contracts and deployment
 backend/            Track 3 — TypeScript API
 dashboard/          Track 3 — TypeScript web UI
 samples/            Phase 1 API examples and Phase 3 synthetic datasets
+scripts/            Integration and acceptance validation scripts
 docs/
   contracts/        Cross-track schemas and synthetic-data rules
+  integration-validation.md  Phase 26–27 evidence and manual checklist
   decisions.md      Team decisions for the plan
   Plan.md           Full technical development plan
 docker-compose.yml  Local walking skeleton (Phase 2)
@@ -182,14 +207,14 @@ Update this table as work is completed. Set a phase to **In progress** only when
 | 22 | Run optimization screen | Elish | Done | Added the Yard Marks optimization workshop at `/allocations` for Shipper and Administrator: order entry, three normalized weight dials, single-flight run progress, empty/outage handling, saved plan results, assignments, readable unassigned reasons, ranked alternatives, KPI metrics, and cost/on-time what-if comparison. Acceptance captures a registered Carrier wallet and contract terms, derives wagon count from the immutable plan, uses an idempotency key, handles queued chain operations, and routes successful creation to a contract receipt. What-if runs reuse the immutable saved order/yard snapshot and save child plans in the same scenario group; database constraints prevent more than one active acceptance and contract across alternatives. All 55 dashboard tests pass; the frontend build passes. All 13 PostgreSQL/Compose backend tests pass with the live AI engine and local chain, including saved-snapshot reuse, acceptance locking, and the vector-F contract lifecycle. Migration 005 is applied. See [decision 26](docs/decisions.md). |
 | 23 | Contracts screen | Elish | Done | Replaced the contracts placeholder with a searchable, state-filtered, cursor-paged ledger and full detail view: eight-state progression with a dispute branch, party terms and assignment snapshots, financial deductions for parties, and chronological event history. Administrator/Auditor details now include public lifecycle event metadata while omitting terms, assignments, and money. Added carrier booking/shipment/delivery, party dispute, administrator resolution/release/close actions with backend-matched role/state gates, idempotency, queued retry, local refresh after success, and conflict errors that leave displayed state unchanged. Ownership-safe 404 messaging avoids confirming inaccessible contracts. Seven focused tests cover 20-item filtering, chronological hashes/actors, party privacy, audit read-only history, action matrix, successful updates, conflict handling, and 404 behavior. All 42 dashboard tests pass; frontend build and backend TypeScript/Docker image builds pass. Backend contract integration tests were skipped in this run because `TEST_DATABASE_URL` and live-chain settings were not configured. Browser review at desktop and 375px confirms the ledger and detail render without page-width overflow. See [decision 27](docs/decisions.md). |
 | 24 | Tracking and settlement screen | Elish | Done | Added a contract tracking panel with ordered shipment/delivery milestones, actual delivery or planned ETA versus the contractual SLA, and copy that distinguishes plan predictions from live position. Settlement now shows the API-recorded integer-paise amounts alongside event-derived delay blocks and billable holding hours, including freight cap, dispute hold, and pending calculation states. Administrator/Auditor payloads expose only public milestone metadata; private settlement event details remain party-only. The mock vector-F contract follows the canonical 12-wagon/₹5-per-wagon-hour terms. All 44 dashboard tests pass; the frontend production build succeeds; backend suite reports 9 passed and 4 DB/live-chain integration skips; detector found no findings. Desktop was reviewed in the browser; a new mobile browser review was blocked by browser URL policy, so mobile visual acceptance remains open. |
-| 25 | Alerts, export, and UI polish | Elish | In progress | Added authenticated WebSocket alerts for disputes, late delivery, and shipment ETAs beyond SLA; the client checks party ownership before announcing events and refreshes affected contract/overview screens. The connection reconnects with bounded backoff and ends with the session token; mock mode clearly labels its 15-second refresh fallback. Added plan and settlement CSV exports with quoted/formula-safe cells, exact paise values, and disabled states while data is incomplete. All 63 dashboard tests pass and the frontend production build succeeds. Migration 006 is applied; all 15 PostgreSQL/Compose backend tests pass with the live AI engine and local blockchain. Docker Compose reports all services healthy, the backend health check reports all three dependencies up, and the dashboard returns HTTP 200. Responsive/keyboard/accessibility review at 375/768/1280 and the unfamiliar-user walkthrough remain open. See [decision 29](docs/decisions.md). Local frontend demo now has six pending synthetic orders and five real API/chain contracts across booking, transit, payment-ready, and closed states; all four roles were verified through the frontend proxy. Freight orders and Audit trail link to working screens; five route/session tests pass. See [demo guide](docs/frontend-demo.md). Freight orders now has its own register and shared entry form; CP-SAT & ML lab is linked in every role sidebar, with live results, synthetic accuracy/baseline/confusion matrix, model identity and fallback disclosure. Live proxy checks confirmed 12 existing Planned orders, CP-SAT 2 loads versus greedy 1, and grain probabilities 51.81%/88.30%/98.15%. Six AI/demo tests and 71 dashboard tests pass (two opt-in integration checks skipped); the production build passes and the source design detector reports no findings. Browser inspection remains pending because the browser connection is unavailable. |
+| 25 | Alerts, export, and UI polish | Elish | Done (software) | Party-only live alerts, plan/settlement CSV, role-aware signup/login, freight register, saved plans, action audit and Administrator account/wagon/route workflows are implemented. Yard Marks now includes live CP-SAT & ML and blockchain demonstration pages. Blockchain headers, timestamps, parent links and roots come from the node; replay and reduced-motion controls are explicit. Accessibility fixes cover contrast, keyboard-scrollable tables, ARIA semantics and settlement descriptions. Operational allocations use a saved current planning clock; synthetic teaching cases retain their fixed epoch. See [TDP audit](docs/tdp-completion-audit.md) and [demo guide](docs/frontend-demo.md). Automated browser review and final evidence are recorded below; the unfamiliar-person walkthrough remains an external Phase 27 item. Genesis-first bounded history with full UTC/IST block dates and animated parent links; interactive CP-SAT candidate and model-matched Logistic Regression sigmoid walkthroughs add playback/speed/reduced-motion controls. See [interactive visualizations](docs/interactive-visualizations.md). |
 
 ### Integration and validation
 
 | Phase | Work | Owner | Status | Evidence / notes |
 |---|---|---|---|---|
-| 26 | End-to-end flow validation | All three | Not started | |
-| 27 | Acceptance testing and final validation | All three | Not started | |
+| 26 | End-to-end flow validation | All three | Done | Clean isolated Compose build passes both exact settlement cases: late penalty 150,000 / demurrage 24,000 / net 2,326,000 paise; on-time deductions 0 / net 2,500,000. All four failure drills pass, including an actual chain process stop/restart with persisted blocks/state, queued delivery applied exactly once, duplicate acceptance and payout protection. Checks include canonical terms hashes, ownership, saved-snapshot what-if, dispute hold/resolution, event replay repair, ledger/cache history and 50 contract reads below 500 ms p95. Pinned Anvil persists the local ledger; deployment reuses verified bytecode/operator and Solidity compiles with pinned local solc. See [commands/evidence](docs/integration-validation.md). |
+| 27 | Acceptance testing and final validation | All three | In progress — external acceptance pending | Automated suites pass: 88 AI tests, 19 PostgreSQL/live-service backend tests, dashboard tests/build, 60 Hardhat contract tests and 60 tests on an independent local Anvil node. Browser evidence covers responsive layouts, accessibility, block creation/replay and keyboard order-to-contract navigation; final results are recorded in the [validation report](docs/integration-validation.md). All main services are healthy with a populated real API/chain demo. Remaining external evidence: execution on another machine, an unfamiliar-person walkthrough, and the other teammates' Phase 0 machine checks. These are not claimed as completed by automation on this workstation. |
 
 ## Current setup checklist
 

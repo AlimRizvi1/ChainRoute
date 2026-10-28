@@ -117,8 +117,8 @@ function ContractDetailPage({ contractId, role }: { contractId: string; role?: s
     if (!action || acting) return;
     const form = new FormData(event.currentTarget);
     let body: Record<string, string> | undefined;
-    if (action === "shipment-status") body = { status: String(form.get("status")), timestamp: new Date().toISOString() };
-    if (action === "confirm-delivery") body = { timestamp: new Date().toISOString(), podReference: String(form.get("podReference") ?? "").trim() };
+    if (action === "shipment-status") body = { status: String(form.get("status")), timestamp: new Date(String(form.get("timestamp"))).toISOString() };
+    if (action === "confirm-delivery") body = { timestamp: new Date(String(form.get("timestamp"))).toISOString(), podReference: String(form.get("podReference") ?? "").trim() };
     if (action === "dispute") body = { reasonCode: String(form.get("reasonCode") ?? "").trim() };
     if (action === "resolve-dispute") body = { outcome: String(form.get("outcome")) };
     const saved = idempotencyKeys.current.get(action);
@@ -137,6 +137,7 @@ function ContractDetailPage({ contractId, role }: { contractId: string; role?: s
         await refresh();
       }
     } catch (cause) {
+      if (cause instanceof ApiError && cause.status >= 400 && cause.status < 500 && ![408, 429].includes(cause.status)) idempotencyKeys.current.delete(action);
       setActionError(cause instanceof ApiError ? cause.message : "The action could not be completed.");
     } finally { setActing(false); }
   }
@@ -148,6 +149,9 @@ function ContractDetailPage({ contractId, role }: { contractId: string; role?: s
   const history = [...(detail.history ?? [])].sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
   const actions = availableActions(detail.state, role);
   const currentIndex = detail.state === "Disputed" ? -1 : FLOW.indexOf(detail.state);
+  const latestRecorded = Math.max(0, ...history.map(event => Date.parse(event.timestamp)).filter(Number.isFinite));
+  const suggestedEventTime = new Date(Math.max(Date.now(), latestRecorded));
+  const localEventTime = new Date(suggestedEventTime.getTime() - suggestedEventTime.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
 
   return <section className="contract-detail-page" aria-labelledby="contract-detail-title">
     <div className="contract-breadcrumb"><Link to="/contracts"><span aria-hidden="true">←</span> Contract ledger</Link><span>/</span><span>{detail.contractId}</span></div>
@@ -164,6 +168,7 @@ function ContractDetailPage({ contractId, role }: { contractId: string; role?: s
         {role === "Auditor" ? <div className="redacted-note"><span aria-hidden="true">◉</span><strong>Auditor view is read-only.</strong><p>Lifecycle actions remain with the assigned parties and operator.</p></div> : actions.length === 0 ? <div className="redacted-note"><span aria-hidden="true">✓</span><strong>No action is waiting on this role.</strong><p>Available actions change with contract state and party assignment.</p></div> : <div className="available-actions">{actions.map((item) => <button className={`contract-action-button${item === action ? " is-selected" : ""}`} key={item} onClick={() => { setAction(action === item ? null : item); setActionError(null); }} disabled={acting} type="button"><span aria-hidden="true">{actionIcon(item)}</span>{ACTION_LABEL[item]}<i aria-hidden="true">{action === item ? "−" : "↗"}</i></button>)}</div>}
         {action && <form className="contract-action-form" onSubmit={(event) => void submitAction(event)}><div><p className="eyebrow">CONFIRM / {ACTION_LABEL[action].toUpperCase()}</p><p>{actionDescription(action)}</p></div>
           {action === "shipment-status" && <label>Milestone<select name="status" defaultValue="Dispatched"><option value="Dispatched">Dispatched</option><option value="CheckpointReached">Checkpoint reached</option><option value="ArrivedAtDestination">Arrived at destination</option></select></label>}
+          {(action === "shipment-status" || action === "confirm-delivery") && <label>Event time<input name="timestamp" type="datetime-local" step="1" defaultValue={localEventTime} required /><small>Local time; stored in UTC. Choose the observed milestone time, at or after the previous record. The local demonstration chain may have been advanced to simulate a late delivery.</small></label>}
           {action === "confirm-delivery" && <label>Proof of delivery reference<input name="podReference" placeholder="Delivery note or POD reference" required maxLength={256} /></label>}
           {action === "dispute" && <label>Dispute reason<input name="reasonCode" placeholder="Describe the issue" required maxLength={128} /></label>}
           {action === "resolve-dispute" && <label>Resolution<select name="outcome" defaultValue="UpholdDeductions"><option value="UpholdDeductions">Uphold deductions</option><option value="WaivePenalty">Waive penalty</option><option value="WaiveAll">Waive all deductions</option></select></label>}
@@ -171,7 +176,7 @@ function ContractDetailPage({ contractId, role }: { contractId: string; role?: s
           <div className="contract-action-form-buttons"><button className="secondary-button" onClick={() => setAction(null)} disabled={acting} type="button">Cancel</button><button className="primary-button" disabled={acting} type="submit">{acting ? "Recording…" : actionNotice?.includes("Operation ") ? "Check action status" : action === "confirm-booking" ? "Record booking" : `Confirm ${ACTION_LABEL[action].toLowerCase()}`}<span aria-hidden="true"> ↗</span></button></div>
         </form>}
       </section>
-      {!redacted && <section className="optimization-panel contract-assignment-panel"><div className="panel-heading"><div><p className="eyebrow">PLAN SNAPSHOT</p><h2>Committed assignments</h2></div><span className="panel-count">{detail.assignments?.length ?? 0} loads</span></div>{detail.assignments?.length ? <div className="assignment-table-wrap"><table className="assignment-table contract-assignment-table"><thead><tr><th>Order</th><th>Load</th><th>Wagons</th><th>Route</th><th>Schedule</th></tr></thead><tbody>{detail.assignments.map((assignment) => <tr key={assignment.orderId}><td><strong>{assignment.orderId}</strong></td><td>{assignment.quantityTonnes} t · {assignment.cargoType}</td><td>{assignment.wagonIds.join(", ")}</td><td><strong>{assignment.route.origin} → {assignment.route.destination}</strong><small>{assignment.route.routeId}</small></td><td><strong>Depart · {formatDate(assignment.departAt)}</strong><small>ETA · {formatDate(assignment.eta)}</small></td></tr>)}</tbody></table></div> : <EmptyState title="No assigned wagons"><p>This plan did not include a contracted assignment.</p></EmptyState>}</section>}
+      {!redacted && <section className="optimization-panel contract-assignment-panel"><div className="panel-heading"><div><p className="eyebrow">PLAN SNAPSHOT</p><h2>Committed assignments</h2></div><span className="panel-count">{detail.assignments?.length ?? 0} loads</span></div>{detail.assignments?.length ? <div className="assignment-table-wrap" tabIndex={0} role="region" aria-label="Scrollable data table"><table className="assignment-table contract-assignment-table"><thead><tr><th>Order</th><th>Load</th><th>Wagons</th><th>Route</th><th>Schedule</th></tr></thead><tbody>{detail.assignments.map((assignment) => <tr key={assignment.orderId}><td><strong>{assignment.orderId}</strong></td><td>{assignment.quantityTonnes} t · {assignment.cargoType}</td><td>{assignment.wagonIds.join(", ")}</td><td><strong>{assignment.route.origin} → {assignment.route.destination}</strong><small>{assignment.route.routeId}</small></td><td><strong>Depart · {formatDate(assignment.departAt)}</strong><small>ETA · {formatDate(assignment.eta)}</small></td></tr>)}</tbody></table></div> : <EmptyState title="No assigned wagons"><p>This plan did not include a contracted assignment.</p></EmptyState>}</section>}
       {!redacted && <TrackingPanel detail={detail} history={history} />}
       <section className="optimization-panel contract-history-panel"><div className="panel-heading"><div><p className="eyebrow">APPEND-ONLY EVENT LOG</p><h2>State history</h2></div><span className="panel-count">{history.length} events</span></div>{history.length ? <ol className="contract-history">{history.map((event, index) => <li key={`${event.timestamp}-${event.dataHash}`} style={{ "--item-index": index } as React.CSSProperties}><span className="history-node" aria-hidden="true">{index + 1}</span><div className="history-event"><strong>{humanizeEvent(event.action)}</strong><small>{formatDate(event.timestamp)} · {event.actor}</small><code>{event.dataHash}</code></div></li>)}</ol> : <div className="redacted-note"><strong>{redacted ? "Event detail is not included in this role’s redacted view." : "No cached lifecycle events yet."}</strong><p>The displayed state remains available while the event log synchronizes.</p></div>}</section>
       <SettlementBreakdown detail={detail} history={history} redacted={redacted} />
@@ -229,12 +234,12 @@ function SettlementBreakdown({ detail, history, redacted }: { detail: ContractDe
     {redacted ? <p className="redacted-inline">Commercial terms and settlement amounts are hidden for Administrator and Auditor views.</p> : <>
       {onHold && <p className="settlement-hold" role="status">A dispute is open. The recorded settlement remains on hold until it is resolved.</p>}
       {!computed && <p className="settlement-pending">The contract has not recorded a delivery calculation. Freight and deduction amounts will appear here when the backend reports them.</p>}
-      <div className="settlement-values"><Term label="Freight value" value={formatPaise(detail.terms?.freightValuePaise)} />
-        <div className="settlement-line"><div><dt>Penalty</dt><small>{penaltyBlocks === null ? "Calculation detail pending" : `${penaltyBlocks.toString()} ${penaltyBlocks === 1n ? "block" : "blocks"} × ${detail.terms?.penaltyBpsPerBlock ?? 0} BPS per ${formatDuration(blockSeconds)} block`}</small></div><dd>{computed ? formatPaise(detail.penaltyPaise) : "Pending"}</dd></div>
-        <div className="settlement-line"><div><dt>Demurrage</dt><small>{billableHours === null ? "Calculation detail pending" : `${detail.terms?.wagonCount ?? 0} wagons × ${billableHours.toString()} billable ${billableHours === 1n ? "hour" : "hours"} × ${formatPaise(detail.terms?.demurrageRatePaisePerWagonHour)} per wagon-hour`}</small></div><dd>{computed ? formatPaise(detail.demurragePaise) : "Pending"}</dd></div>
-        {capped && <p className="settlement-cap">Penalty reached the freight value cap recorded by the contract.</p>}
+      <dl className="settlement-values"><Term label="Freight value" value={formatPaise(detail.terms?.freightValuePaise)} />
+        <div className="settlement-line"><dt>Penalty<small>{penaltyBlocks === null ? "Calculation detail pending" : `${penaltyBlocks.toString()} ${penaltyBlocks === 1n ? "block" : "blocks"} × ${detail.terms?.penaltyBpsPerBlock ?? 0} BPS per ${formatDuration(blockSeconds)} block`}</small></dt><dd>{computed ? formatPaise(detail.penaltyPaise) : "Pending"}</dd></div>
+        <div className="settlement-line"><dt>Demurrage<small>{billableHours === null ? "Calculation detail pending" : `${detail.terms?.wagonCount ?? 0} wagons × ${billableHours.toString()} billable ${billableHours === 1n ? "hour" : "hours"} × ${formatPaise(detail.terms?.demurrageRatePaisePerWagonHour)} per wagon-hour`}</small></dt><dd>{computed ? formatPaise(detail.demurragePaise) : "Pending"}</dd></div>
         <div className="settlement-net"><dt>{detail.state === "PaymentReleased" || detail.state === "Closed" ? "Net accounting value released" : "Net payable recorded by backend"}</dt><dd>{computed ? formatPaise(detail.netPaymentPaise) : "Pending"}</dd></div>
-      </div>
+      </dl>
+        {capped && <p className="settlement-cap">Penalty reached the freight value cap recorded by the contract.</p>}
       <p className="settlement-footnote">Amounts are returned by the contract API in integer paise and formatted here for display. This screen does not calculate settlement money.</p>
     </>}
   </section>;

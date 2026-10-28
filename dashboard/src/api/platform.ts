@@ -1,0 +1,16 @@
+import { apiRequest } from "./client";
+import type { AllocationPlan, PlanMetrics } from "./optimization";
+export type Page<T> = { items: T[]; total: number; nextOffset: number | null };
+export type SavedPlan = { planId: string; runId: string; createdAt: string; assignmentCount: number; contractId: string | null; metrics: PlanMetrics };
+export type AuditEntry = { id: string; actor: string; action: string; resourceType: string; resourceId: string | null; occurredAt: string; outcome: string; statusCode: number };
+export type Resources = { walletMapped: boolean; carriers: { username: string; address: string }[]; yards: { location: string; wagonType: string }[]; routes: { origin: string; destination: string }[] };
+export type Wagon = { wagonId: string; capacityTonnes: number; wagonType: string; location: string; available: boolean; active: boolean };
+export type FreightRoute = { routeId: string; origin: string; destination: string; distanceKm: number; transitTimeSeconds: number; active: boolean };
+export const planningResources = () => apiRequest<Resources>("/planning/resources");
+export const savedPlans = (offset = 0) => apiRequest<Page<SavedPlan>>(`/plans?offset=${offset}`);
+export const loadPlan = (id: string) => apiRequest<AllocationPlan>(`/plans/${encodeURIComponent(id)}`);
+export const auditEntries = (offset: number, search: string, outcome: string) => apiRequest<Page<AuditEntry>>(`/audit?${new URLSearchParams({ offset: String(offset), search, ...(outcome ? { outcome } : {}) })}`);
+export const provisionWallet = (id: string) => apiRequest<{ walletMapped: boolean; address: string }>(`/admin/users/${encodeURIComponent(id)}/local-wallet`, { method: "POST" });
+export const getWagons = () => apiRequest<{ items: Wagon[] }>("/admin/wagons");
+export const getRoutes = () => apiRequest<{ items: FreightRoute[] }>("/admin/routes");
+export const saveResource = (kind: "wagons" | "routes", body: Wagon | FreightRoute) => apiRequest(`/admin/${kind}`, { method: "PUT", body });
